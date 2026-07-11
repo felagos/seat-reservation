@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Real-time seat reservation system using **pessimistic locking + queue with timeout + double-check** for concurrency safety. Two users cannot reserve the same seat simultaneously.
 
 **Stack:**
-- Backend: Java 21, Spring Boot 4.1.0, PostgreSQL, Gradle
+- Backend: Java 21, Spring Boot 4.1.0, MariaDB, Gradle
 - Frontend: React 19, TypeScript, Vite, Material UI, Bun
 - Real-time: Server-Sent Events (SSE)
 - Infra: Docker multi-stage, docker-compose for dev
@@ -99,12 +99,12 @@ Every instance (including the one that published) receives its own message back 
 
 Ownership moved out of Java entirely. `docker/init-db/init-demo.sql` owns both the **schema** (`CREATE TABLE IF NOT EXISTS`) and the **seed data**:
 1. Creates tables `events`, `reservations`, `seats` (+ indexes `idx_event_status`, `idx_held_until`) if missing
-2. `TRUNCATE TABLE seats, reservations, events RESTART IDENTITY CASCADE` — wipes rows and resets identity sequences in one statement
+2. `SET FOREIGN_KEY_CHECKS=0; TRUNCATE` each table, then re-enables checks — wipes rows and resets `AUTO_INCREMENT` counters
 3. Inserts demo Event (`id=1`, "Demo Concert") and 50 demo Seats (5 rows A-E × 10 seats each, `status=AVAILABLE`)
 
-Run by the `db-init` service in `docker/docker-compose.dev.yml`, which executes `psql -f init-demo.sql` against Postgres **every time `docker-compose up` runs** (not just on first volume creation — that's why it's a dedicated one-shot service instead of `docker-entrypoint-initdb.d`). Compose ordering: `postgres` (healthy) → `db-init` (runs, exits 0) → `backend` (starts).
+Run by the `db-init` service in `docker/docker-compose.dev.yml`, which pipes `init-demo.sql` into the `mariadb` client against MariaDB **every time `docker-compose up` runs** (not just on first volume creation — that's why it's a dedicated one-shot service instead of an entrypoint-initdb script). Compose ordering: `mariadb` (healthy) → `db-init` (runs, exits 0) → `backend` (starts).
 
-Because schema ownership lives in SQL now, backend no longer creates/alters tables — `spring.jpa.hibernate.ddl-auto=validate` (was `update`). Local `bootRun`/`backend-dev` flow needs `db-init` to have run at least once against the target Postgres first: `docker-compose -f docker/docker-compose.dev.yml up postgres db-init` before `./gradlew bootRun`.
+Because schema ownership lives in SQL now, backend no longer creates/alters tables — `spring.jpa.hibernate.ddl-auto=validate` (was `update`). Local `bootRun`/`backend-dev` flow needs `db-init` to have run at least once against the target MariaDB first: `docker-compose -f docker/docker-compose.dev.yml up mariadb db-init` before `./gradlew bootRun`.
 
 Frontend: `useSeatMap(eventId)` calls `GET /api/events/{eventId}/seats` on mount (eventId=1 in demo) and gets the freshly-seeded data. There is no `/api/admin/init-demo` endpoint anymore — `AdminController`/`AdminService`/`DatabaseInitializer` were deleted; reseeding only happens via `docker-compose up`, not HTTP.
 
@@ -197,7 +197,7 @@ Vite dev server includes TypeScript type-checking and hot reload via `bun dev`.
 
 **Logging** (SLF4J + Log4j2):
 - No Logback (excluded from spring-boot-starter-logging)
-- Database init logs now come from the `db-init` container's `psql` output, not Java/Log4j2
+- Database init logs now come from the `db-init` container's `mariadb` client output, not Java/Log4j2
 
 ## Debugging Tips
 

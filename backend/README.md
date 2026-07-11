@@ -62,7 +62,7 @@ exception/              → Custom exceptions
 
 2. **DB pessimistic lock**:
    - `@Lock(LockModeType.PESSIMISTIC_WRITE)` in JPA
-   - `SELECT ... FOR UPDATE` in Postgres
+   - `SELECT ... FOR UPDATE` in MariaDB
    - Serializes across multiple backend instances
 
 3. **Double-check**:
@@ -192,9 +192,9 @@ Details always shown (configured in application.properties)
 
 `application.properties`:
 ```properties
-spring.datasource.url=jdbc:postgresql://localhost:5432/seatres
-spring.datasource.username=postgres
-spring.datasource.password=postgres
+spring.datasource.url=jdbc:mariadb://localhost:3306/seatres
+spring.datasource.username=root
+spring.datasource.password=root
 
 spring.jpa.hibernate.ddl-auto=validate
 spring.threads.virtual.enabled=true
@@ -219,14 +219,14 @@ management.health.db.enabled=true
 
 Schema and seed no longer live in Java. `docker/init-db/init-demo.sql` owns both:
 1. **Schema**: `CREATE TABLE IF NOT EXISTS` for events, reservations, seats + indices `idx_event_status`, `idx_held_until`
-2. **Truncate + reset**: `TRUNCATE TABLE seats, reservations, events RESTART IDENTITY CASCADE`
+2. **Truncate + reset**: `SET FOREIGN_KEY_CHECKS=0; TRUNCATE` each table, then re-enables checks — resets `AUTO_INCREMENT` too
 3. **Seed**: creates Event id=1 + 50 Seats (A1-E10)
 
-Executed by `db-init` service in `docker/docker-compose.dev.yml` (`psql -f init-demo.sql`), which runs **every time `docker-compose up` is run** (not just the first time the volume is created). Startup order: `postgres` (healthy) → `db-init` (runs and exits) → `backend` (starts).
+Executed by `db-init` service in `docker/docker-compose.dev.yml` (pipes `init-demo.sql` into the `mariadb` client), which runs **every time `docker-compose up` is run** (not just the first time the volume is created). Startup order: `mariadb` (healthy) → `db-init` (runs and exits) → `backend` (starts).
 
-Since SQL owns the schema, backend no longer creates/alters tables: `spring.jpa.hibernate.ddl-auto=validate`. To run backend locally (`./gradlew bootRun` / `make backend-dev`) against a Postgres that doesn't yet have the schema, first:
+Since SQL owns the schema, backend no longer creates/alters tables: `spring.jpa.hibernate.ddl-auto=validate`. To run backend locally (`./gradlew bootRun` / `make backend-dev`) against a MariaDB that doesn't yet have the schema, first:
 ```bash
-docker-compose -f ../docker/docker-compose.dev.yml up postgres db-init
+docker-compose -f ../docker/docker-compose.dev.yml up mariadb db-init
 ```
 
 ## Logging
@@ -294,8 +294,8 @@ cd backend
 ### Run
 
 ```bash
-# With PostgreSQL + schema/seed + Redis in Docker
-docker-compose -f ../docker/docker-compose.dev.yml up postgres db-init redis
+# With MariaDB + schema/seed + Redis in Docker
+docker-compose -f ../docker/docker-compose.dev.yml up mariadb db-init redis
 
 # Run backend
 ./gradlew bootRun
@@ -323,7 +323,7 @@ docker build -t seatreservation:latest .
 
 # Run
 docker run -p 8080:8080 \
-  -e SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/seatres \
+  -e SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/seatres \
   -e SPRING_DATA_REDIS_HOST=redis \
   seatreservation:latest
 ```
@@ -371,7 +371,7 @@ SSE event fanout between instances works via Redis Pub/Sub (see "Real-time Event
   - Comment keepalive to prevent timeouts
 
 - **Pessimistic locking**:
-  - `FOR UPDATE` in Postgres: very efficient for low-medium contention
+  - `FOR UPDATE` in MariaDB: very efficient for low-medium contention
   - If high contention: consider optimistic locking + retry
 
 - **DB indices**: 
@@ -400,7 +400,7 @@ logging.level.org.hibernate.type.descriptor.sql.BasicBinder=TRACE
 | Problem | Cause | Solution |
 |---------|-------|----------|
 | "No active transaction" | @Transactional on private method | Use ObjectProvider for proxy |
-| "Connection refused" | PostgreSQL not running | `docker-compose up postgres` |
+| "Connection refused" | MariaDB not running | `docker-compose up mariadb` |
 | "409 Conflict" | Seat already taken | Another client reserved it first |
 | "410 Gone" | Hold expired | Select again (max 120s) |
 | SSE not connecting | CORS or proxy issue | Check vite.config.ts proxy |

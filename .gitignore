@@ -20,7 +20,7 @@ frontend/.env.local
 .DS_Store
 
 # Docker
-docker/postgres_data/
+docker/mariadb_data/
 
 # Environment
 .env

@@ -64,12 +64,12 @@ make frontend
 docker-compose -f docker/docker-compose.dev.yml up
 
 # Option 2 - Local:
-# Terminal 1: docker-compose -f docker/docker-compose.dev.yml up postgres db-init
+# Terminal 1: docker-compose -f docker/docker-compose.dev.yml up mariadb db-init
 # Terminal 2: cd backend && ./gradlew bootRun
 # Terminal 3: cd frontend && bun dev
 ```
 
-Schema and demo data (event id=1 + 50 seats) are no longer created by the backend: they are owned by `docker/init-db/init-demo.sql`, executed by the `db-init` service every time `docker-compose up` runs (order: `postgres` → `db-init` → `backend`). Backend uses `ddl-auto=validate`, so it requires `db-init` to have run at least once against the Postgres it's using.
+Schema and demo data (event id=1 + 50 seats) are no longer created by the backend: they are owned by `docker/init-db/init-demo.sql`, executed by the `db-init` service every time `docker-compose up` runs (order: `mariadb` → `db-init` → `backend`). Backend uses `ddl-auto=validate`, so it requires `db-init` to have run at least once against the MariaDB it's using.
 
 ### Scale to multiple backend instances
 
@@ -149,11 +149,11 @@ seat-reservation/
 docker-compose up          db-init container           Database              User opens app         Frontend
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────
      │
-     ├─ postgres healthy
-     ├─ db-init: psql -f init-demo.sql
+     ├─ mariadb healthy
+     ├─ db-init: mariadb < init-demo.sql
      │                            │
      │                            ├─ CREATE TABLE IF NOT EXISTS events/reservations/seats
-     │                            ├─ TRUNCATE ... RESTART IDENTITY CASCADE
+     │                            ├─ TRUNCATE (FK checks off) each table
      │
      │                            ├─ CREATE Event(id=1, Demo Concert)
      │                            │  INSERT INTO events

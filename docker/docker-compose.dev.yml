@@ -1,19 +1,18 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: seatres-postgres-dev
+  mariadb:
+    image: mariadb:11
+    container_name: seatres-mariadb-dev
     environment:
-      POSTGRES_DB: seatres
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      MARIADB_DATABASE: seatres
+      MARIADB_ROOT_PASSWORD: root
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mariadb_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -21,16 +20,14 @@ services:
       - seatres-network
 
   db-init:
-    image: postgres:16-alpine
+    image: mariadb:11
     container_name: seatres-db-init
     depends_on:
-      postgres:
+      mariadb:
         condition: service_healthy
-    environment:
-      PGPASSWORD: postgres
     volumes:
       - ./init-db/init-demo.sql:/sql/init-demo.sql:ro
-    command: ["psql", "-h", "postgres", "-U", "postgres", "-d", "seatres", "-f", "/sql/init-demo.sql"]
+    command: ["sh", "-c", "mariadb -h mariadb -u root -proot seatres < /sql/init-demo.sql"]
     networks:
       - seatres-network
 
@@ -51,9 +48,9 @@ services:
       dockerfile: Dockerfile
     container_name: seatres-backend-1
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/seatres
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/seatres
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
       SPRING_JPA_HIBERNATE_DDL_AUTO: validate
       SPRING_APPLICATION_NAME: seatreservation
       SPRING_DATA_REDIS_HOST: redis
@@ -78,9 +75,9 @@ services:
       dockerfile: Dockerfile
     container_name: seatres-backend-2
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/seatres
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/seatres
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
       SPRING_JPA_HIBERNATE_DDL_AUTO: validate
       SPRING_APPLICATION_NAME: seatreservation
       SPRING_DATA_REDIS_HOST: redis
@@ -115,7 +112,7 @@ services:
       - seatres-network
 
 volumes:
-  postgres_data:
+  mariadb_data:
 
 networks:
   seatres-network:

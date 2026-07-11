@@ -30,7 +30,7 @@ dependencies {
 	implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 	implementation("org.springframework.boot:spring-boot-starter-log4j2")
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
-	runtimeOnly("org.postgresql:postgresql")
+	runtimeOnly("org.mariadb.jdbc:mariadb-java-client")
 	configurations.all {
 		exclude("org.springframework.boot", "spring-boot-starter-logging")
 	}
