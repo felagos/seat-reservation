@@ -1,4 +1,4 @@
-import { Container, Box, CircularProgress } from '@mui/material';
+import { Box, CircularProgress, Container, Typography } from '@mui/material';
 import { SeatMap } from './components/SeatMap/SeatMap';
 import { ReservationBar } from './components/ReservationBar/ReservationBar';
 import { useSeatsQuery } from './hooks/useSeatsQuery';
@@ -8,6 +8,7 @@ import { useReleaseSeatMutation } from './hooks/useReleaseSeatMutation';
 import { useConfirmReservationMutation } from './hooks/useConfirmReservationMutation';
 import { useUIStore } from './store/useUIStore';
 import { useSeatsStore } from './store/useSeatsStore';
+import styles from './App.module.css';
 
 const EVENT_ID = 1;
 
@@ -43,19 +44,31 @@ function App() {
 
   if (isLoading) {
     return (
-      <Container>
+      <Box className={styles.page}>
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-          <CircularProgress />
+          <CircularProgress sx={{ color: 'primary.main' }} />
         </Box>
-      </Container>
+      </Box>
     );
   }
 
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ pb: 10 }}>
+    <Box className={styles.page}>
+      <header className={styles.header}>
+        <Box className={styles.brand}>
+          <Box className={styles.logo}>
+            <Box className={styles.logoDot} />
+          </Box>
+          <Typography component="span" className={styles.brandName}>
+            AURORA CINE
+          </Typography>
+        </Box>
+      </header>
+
+      <Container maxWidth="lg" component="main" sx={{ pt: { xs: 3, md: 5 }, pb: 12 }}>
         <SeatMap seats={seats} onHold={handleHold} onRelease={handleRelease} />
-      </Box>
+      </Container>
+
       <ReservationBar
         seats={seats}
         onConfirm={handleConfirm}
@@ -63,7 +76,7 @@ function App() {
         error={error}
         onDismissError={clearError}
       />
-    </Container>
+    </Box>
   );
 }
 

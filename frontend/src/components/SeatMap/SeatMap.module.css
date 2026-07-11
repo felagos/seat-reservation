@@ -1,23 +1,123 @@
-.container {
-  margin-top: 32px;
+@media (prefers-reduced-motion: no-preference) {
+  .container {
+    animation: fadeUp 0.4s ease both;
+  }
 }
 
-.stageLabel {
-  margin-bottom: 24px;
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.title {
   text-align: center;
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  text-align: center;
+  color: rgba(245, 241, 236, 0.45);
+  font-size: 13.5px;
+  margin-bottom: 20px;
+}
+
+.mapScroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 10px 0 26px;
+}
+
+.screenBar {
+  width: min(70%, 640px);
+  max-width: 640px;
+  height: 8px;
+  margin: 0 auto 50px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, transparent, #e0533d, transparent);
+  box-shadow: 0 0 24px 4px rgba(224, 83, 61, 0.45);
+  color: transparent;
+  font-size: 1px;
+}
+
+.seatMapWrap {
+  width: 720px;
+  max-width: 100%;
+  margin: 0 auto;
 }
 
 .rowBlock {
-  margin-bottom: 24px;
-}
-
-.rowContent {
   display: flex;
   align-items: center;
   gap: 16px;
+  margin-bottom: 12px;
 }
 
 .rowLabel {
-  width: 40px;
-  font-weight: bold;
+  width: 24px;
+  flex: none;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  color: rgba(245, 241, 236, 0.45);
+  text-align: center;
+}
+
+.rowSeats {
+  flex: 1;
+  justify-content: center;
+}
+
+@media (max-width: 600px) {
+  .rowSeats {
+    justify-content: flex-start;
+  }
+}
+
+.legend {
+  display: flex;
+  justify-content: center;
+  gap: clamp(14px, 2vw, 26px);
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: rgba(245, 241, 236, 0.55);
+  padding-top: 8px;
+  border-top: 1px solid rgba(245, 241, 236, 0.08);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.swatchAvailable {
+  background: rgba(245, 241, 236, 0.08);
+  border: 1.5px solid rgba(245, 241, 236, 0.18);
+}
+
+.swatchSelected {
+  background: #e0533d;
+}
+
+.swatchPending {
+  background: rgba(245, 241, 236, 0.04);
+  border: 1.5px solid transparent;
+  opacity: 0.35;
+}
+
+.swatchReserved {
+  background: rgba(245, 241, 236, 0.22);
+  border: 1.5px solid rgba(245, 241, 236, 0.22);
 }

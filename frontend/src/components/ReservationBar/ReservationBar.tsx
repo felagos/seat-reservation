@@ -19,7 +19,7 @@ export function ReservationBar({ seats, onConfirm, loading, error, onDismissErro
       <Box className={styles.bar}>
         <Toolbar className={styles.toolbar}>
           <Box>
-            <strong>Selected seats:</strong> {heldSeats.length}
+            <strong>Selected seats ({heldSeats.length}/8):</strong>
             {heldSeats.length > 0 && (
               <span className={styles.seatList}>
                 {heldSeats.map((s) => `${s.rowLabel}${s.seatNumber}`).join(', ')}

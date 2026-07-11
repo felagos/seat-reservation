@@ -1,0 +1,51 @@
+.page {
+  min-height: 100vh;
+  width: 100%;
+  background: radial-gradient(120% 100% at 50% -10%, #1d1613 0%, #120f0e 55%, #0c0a09 100%);
+  color: #f5f1ec;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: clamp(16px, 3vw, 28px) clamp(20px, 5vw, 56px);
+  border-bottom: 1px solid rgba(245, 241, 236, 0.08);
+  position: sticky;
+  top: 0;
+  background: rgba(18, 15, 14, 0.85);
+  backdrop-filter: blur(10px);
+  z-index: 20;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: #e0533d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 18px rgba(224, 83, 61, 0.45);
+}
+
+.logoDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: #120f0e;
+}
+
+.brandName {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: clamp(16px, 2vw, 20px);
+  letter-spacing: 0.5px;
+}
