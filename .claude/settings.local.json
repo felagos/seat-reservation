@@ -25,7 +25,8 @@
       "Bash(./gradlew.bat compileJava -x test)",
       "Bash(./gradlew.bat dependencies *)",
       "Bash(bun run *)",
-      "Bash(bun test *)"
+      "Bash(bun test *)",
+      "Bash(./gradlew.bat test *)"
     ]
   }
 }

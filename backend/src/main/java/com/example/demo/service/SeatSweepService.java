@@ -15,6 +15,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 
+/**
+ * Scheduled job for lazy expiration of holds.
+ * Runs every 15s (configurable) to find expired HELD seats and revert to AVAILABLE.
+ * Complements lazy-expiry logic in doHoldTx (double-check after lock).
+ * Acquires locks, double-checks before reverting to handle concurrent operations.
+ */
 @Service
 @EnableScheduling
 public class SeatSweepService {
@@ -26,6 +32,14 @@ public class SeatSweepService {
     @Value("${seat.lock.timeout-ms:3000}")
     private long lockTimeoutMs;
 
+    /**
+     * Constructor with dependency injection.
+     *
+     * @param seatRepository seat data access
+     * @param lockRegistry in-memory lock registry
+     * @param eventPublisher application event publisher
+     * @param selfProvider for proxy self-injection
+     */
     public SeatSweepService(
         SeatRepository seatRepository,
         SeatLockRegistry lockRegistry,
@@ -38,6 +52,10 @@ public class SeatSweepService {
         this.selfProvider = selfProvider;
     }
 
+    /**
+     * Sweep expired holds and revert to AVAILABLE.
+     * Scheduled at fixed interval (seat.sweep.interval-ms). Continues on individual failures.
+     */
     @Scheduled(fixedDelayString = "${seat.sweep.interval-ms:15000}")
     public void sweepExpiredHolds() {
         List<Seat> expiredSeats = seatRepository.findByStatusAndHeldUntilBefore(
@@ -57,6 +75,13 @@ public class SeatSweepService {
         }
     }
 
+    /**
+     * Transactional expiration: double-checks seat still expired under lock, then reverts to AVAILABLE.
+     * Publishes SeatReleasedEvent for SSE broadcast.
+     * Called from sweepExpiredHolds after lock acquired.
+     *
+     * @param seatId seat ID to expire
+     */
     @Transactional
     public void doExpireTx(Long seatId) {
         Seat seat = seatRepository.findByIdForUpdate(seatId)
