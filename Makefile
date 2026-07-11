@@ -1,10 +1,15 @@
-.PHONY: help backend backend-dev frontend db-up db-down all dev clean build-backend
+.PHONY: help backend backend-dev frontend db-up db-down all dev clean build-backend test test-backend test-frontend test-watch
 
 help:
 	@echo "Seat Reservation System - Available commands:"
 	@echo ""
 	@echo "  make backend-dev        - Start the backend development environment"
 	@echo "  make frontend-dev       - Start the frontend development environment"
+	@echo ""
+	@echo "  make test               - Run all tests (backend + frontend)"
+	@echo "  make test-backend       - Run backend tests"
+	@echo "  make test-frontend      - Run frontend tests"
+	@echo "  make test-watch         - Run frontend tests in watch mode"
 	@echo ""
 
 
@@ -17,6 +22,21 @@ backend-dev :
 frontend-dev: 
 	@echo "Starting frontend development environment..."
 	cd frontend && bun run dev
+
+test-backend:
+	@echo "Running backend tests..."
+	cd backend && ./gradlew.bat test
+
+test-frontend:
+	@echo "Running frontend tests..."
+	cd frontend && bun test --run
+
+test-watch:
+	@echo "Running frontend tests in watch mode..."
+	cd frontend && bun test --watch
+
+test: test-backend test-frontend
+	@echo "All tests completed"
 
 clean:
 	@echo "Cleaning build artifacts..."

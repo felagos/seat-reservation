@@ -34,8 +34,11 @@ dependencies {
 	configurations.all {
 		exclude("org.springframework.boot", "spring-boot-starter-logging")
 	}
-	testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
-	testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
+	testImplementation("org.springframework.boot:spring-boot-starter-test")
+	testImplementation("org.mockito:mockito-core:5.7.0")
+	testImplementation("org.mockito:mockito-junit-jupiter:5.7.0")
+	testImplementation("com.h2database:h2")
+	testImplementation("org.assertj:assertj-core:3.25.3")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
