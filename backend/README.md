@@ -178,6 +178,16 @@ Events:
 Kept alive with heartbeat every 15s
 ```
 
+### Health Checks
+
+**GET** `/actuator/health`
+```
+Spring Boot Actuator health check endpoint
+Response: 200 {status, components: {db, redis}}
+Shows status of database and Redis connections
+Details always shown (configured in application.properties)
+```
+
 ## Configuration
 
 `application.properties`:
@@ -197,6 +207,12 @@ spring.data.redis.port=6379
 seat.hold.ttl-seconds=120
 seat.lock.timeout-ms=3000
 seat.sweep.interval-ms=15000
+
+# Actuator Health Checks
+management.endpoints.web.exposure.include=health
+management.endpoint.health.show-details=always
+management.health.redis.enabled=true
+management.health.db.enabled=true
 ```
 
 ## Initialization (docker/init-db/init-demo.sql + db-init service)
@@ -310,6 +326,26 @@ docker run -p 8080:8080 \
   -e SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/seatres \
   -e SPRING_DATA_REDIS_HOST=redis \
   seatreservation:latest
+```
+
+### Health Checks
+
+**Dockerfile**: Each backend instance includes a HEALTHCHECK that validates `/actuator/health` every 10s (30s startup grace period, 5 retries before marking unhealthy).
+
+**docker-compose.dev.yml**:
+- `backend-1` and `backend-2` have healthcheck configured to test `/actuator/health`
+- `nginx` waits for both backends to be healthy before starting
+- Ensures backends are fully initialized before traffic routes to them
+- Auto-restarts unhealthy containers
+
+```yaml
+backend-1:
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+    start_period: 30s
 ```
 
 ## Performance & Scalability

@@ -3,15 +3,20 @@
 help:
 	@echo "Seat Reservation System - Available commands:"
 	@echo ""
-	@echo "  make dev               - Alias for: backend-dev (local with hot-reload)"
+	@echo "  make backend-dev        - Start the backend development environment"
+	@echo "  make frontend-dev       - Start the frontend development environment"
 	@echo ""
 
 
-dev: 
+backend-dev : 
 	@echo "Starting development environment..."
 	docker-compose -f docker/docker-compose.dev.yml down
 	docker-compose -f docker/docker-compose.dev.yml up -d --build
 	@echo "Containers up and running."
+
+frontend-dev: 
+	@echo "Starting frontend development environment..."
+	cd frontend && bun run dev
 
 clean:
 	@echo "Cleaning build artifacts..."
