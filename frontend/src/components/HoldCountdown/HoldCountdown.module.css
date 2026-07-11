@@ -1,0 +1,9 @@
+.container {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.label {
+  display: block;
+  margin-bottom: 4px;
+}

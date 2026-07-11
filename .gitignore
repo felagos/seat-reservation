@@ -1,0 +1,27 @@
+# Backend (Gradle + Java)
+backend/build/
+backend/.gradle/
+backend/.idea/
+backend/*.iml
+backend/.vscode/
+
+# Frontend (Node + Bun)
+frontend/node_modules/
+frontend/.bun/
+frontend/dist/
+frontend/.env.local
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Docker
+docker/postgres_data/
+
+# Environment
+.env
+.env.local

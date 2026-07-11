@@ -1,0 +1,10 @@
+.git
+.gitignore
+.gradle
+build/
+.idea
+*.iml
+*.class
+*.jar
+node_modules
+.DS_Store

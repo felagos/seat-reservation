@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\felag\\\\Desktop\\\\seat-reservation\\\\docker\" -Recurse | ForEach-Object { $_.FullName.Replace\\(\"C:\\\\Users\\\\felag\\\\Desktop\\\\seat-reservation\\\\\", \"\"\\) })",
+      "PowerShell(docker rmi seatreservation:latest *)",
+      "PowerShell(curl *)",
+      "PowerShell(tail *)",
+      "PowerShell($clientId = [guid]::NewGuid\\(\\).ToString\\(\\); curl -X POST \"http://localhost:8080/api/events/1/seats/3/hold\" -H \"X-Client-Id: $clientId\" -H \"Content-Type: application/json\" -v 2>&1)",
+      "Bash(./gradlew build *)",
+      "Bash(curl -s \"http://localhost:8080/api/seats\" -H \"X-Client-Id: test-client\")",
+      "Bash(curl *)",
+      "Bash(psql *)",
+      "Bash(docker exec *)",
+      "Bash(./gradlew clean *)",
+      "Bash(docker-compose -f \"C:\\\\Users\\\\felag\\\\Desktop\\\\seat-reservation\\\\docker\\\\docker-compose.dev.yml\" down)",
+      "Bash(docker-compose -f \"C:\\\\Users\\\\felag\\\\Desktop\\\\seat-reservation\\\\docker\\\\docker-compose.dev.yml\" up --build -d)",
+      "Bash(./gradlew.bat build)",
+      "Bash(./gradlew.bat clean *)",
+      "Bash(./gradlew.bat build *)",
+      "Bash(time docker build -t seatreservation-test:latest .)",
+      "Bash(node - --dry-run)",
+      "Bash(node -)"
+    ]
+  }
+}

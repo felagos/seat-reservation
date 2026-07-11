@@ -1,0 +1,15 @@
+.wrapper {
+  cursor: pointer;
+}
+
+.disabled {
+  cursor: not-allowed;
+}
+
+.held {
+  font-weight: bold;
+}
+
+.dimmed {
+  opacity: 0.6;
+}

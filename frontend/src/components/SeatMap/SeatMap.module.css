@@ -1,0 +1,23 @@
+.container {
+  margin-top: 32px;
+}
+
+.stageLabel {
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.rowBlock {
+  margin-bottom: 24px;
+}
+
+.rowContent {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.rowLabel {
+  width: 40px;
+  font-weight: bold;
+}
