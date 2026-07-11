@@ -1,105 +1,107 @@
-# Sistema de Reserva de Asientos en Tiempo Real
+# Real-time Seat Reservation System
 
-Sistema clásico de reserva de asientos con actualizaciones en tiempo real usando **Server-Sent Events (SSE)**, implementado con **pessimistic locking**, **queue con timeout** y **double-check** para garantizar que dos usuarios no puedan reservar el mismo asiento simultáneamente.
+Classic seat reservation system with real-time updates using **Server-Sent Events (SSE)**, implemented with **pessimistic locking**, **queue with timeout**, and **double-check** to ensure two users cannot reserve the same seat simultaneously.
 
-## Características principales
+## Key Features
 
-- ✅ **Real-time updates**: SSE para sincronización instantánea entre navegadores
-- ✅ **Concurrencia segura**: Pessimistic locking + queue con timeout + double-check
-- ✅ **Hold temporal**: Los asientos se pueden seleccionar (hold) y expirecen automáticamente
-- ✅ **Multi-asiento**: Reserva múltiples asientos en una transacción atómica
-- ✅ **UI responsiva**: Material UI con colores diferenciados por estado
-- ✅ **Desarrollo local con hot-reload**: Vite para frontend, Gradle para backend
-- ✅ **Docker**: Imagen multi-stage para producción, compose para desarrollo
+- ✅ **Real-time updates**: SSE for instant synchronization across browsers
+- ✅ **Safe concurrency**: Pessimistic locking + queue with timeout + double-check
+- ✅ **Temporary hold**: Seats can be selected (hold) and automatically expire
+- ✅ **Multi-seat**: Reserve multiple seats in one atomic transaction
+- ✅ **Responsive UI**: Material UI with status-based colors
+- ✅ **Local development with hot-reload**: Vite for frontend, Gradle for backend
+- ✅ **Docker**: Multi-stage image for production, compose for development
 
-## Stack tecnológico
+## Tech Stack
 
 ### Backend
-- **Java 21** con Spring Boot 4.1.0
-- **PostgreSQL 16** para persistencia
-- **JPA/Hibernate** con pessimistic locking (`SELECT ... FOR UPDATE`)
-- **SSE** vía `SseEmitter` de Spring MVC
-- **Redis Pub/Sub** para fanout de eventos SSE entre múltiples instancias backend
-- **Virtual threads** para manejo eficiente de conexiones
-- **Gradle 8.14** como build system
-- **nginx** como load balancer round-robin al escalar backend
+- **Java 21** with Spring Boot 4.1.0
+- **PostgreSQL 16** for persistence
+- **JPA/Hibernate** with pessimistic locking (`SELECT ... FOR UPDATE`)
+- **SSE** via Spring MVC `SseEmitter`
+- **Redis Pub/Sub** for SSE event fanout across multiple backend instances
+- **Virtual threads** for efficient connection handling
+- **Gradle 8.14** as build system
+- **nginx** as round-robin load balancer for scaled backend
 
 ### Frontend
 - **React 19** + TypeScript
-- **Vite 8** como bundler
-- **Material UI 6** para componentes
-- **Bun** como package manager
-- **EventSource (SSE)** para conexión en tiempo real
-- **Vite proxy** para desarrollo local
+- **Vite 8** as bundler
+- **Material UI 6** for components
+- **TanStack Query** for server state management
+- **Zustand** for UI state
+- **CSS Modules** for component styling
+- **Bun** as package manager
+- **EventSource (SSE)** for real-time connection
 
-## Iniciar
+## Getting Started
 
-### Opción 1: Docker (recomendado - sin dependencias locales)
+### Option 1: Docker (recommended - no local dependencies)
 ```bash
-# Terminal 1: PostgreSQL + Backend en Docker
+# Terminal 1: PostgreSQL + Backend in Docker
 make backend
 
 # Terminal 2: Frontend (Vite)
 make frontend
 
-# Abre http://localhost:5173
+# Open http://localhost:5173
 ```
 
-### Opción 2: Desarrollo local con hot-reload
+### Option 2: Local development with hot-reload
 ```bash
-# Terminal 1: PostgreSQL en Docker + Backend en Gradle (hot-reload)
+# Terminal 1: PostgreSQL in Docker + Backend in Gradle (hot-reload)
 make backend-dev
 
 # Terminal 2: Frontend (Vite)
 make frontend
 
-# Abre http://localhost:5173
+# Open http://localhost:5173
 ```
 
 ### Manual
 ```bash
-# Opción 1 - Docker:
+# Option 1 - Docker:
 docker-compose -f docker/docker-compose.dev.yml up
 
-# Opción 2 - Local:
+# Option 2 - Local:
 # Terminal 1: docker-compose -f docker/docker-compose.dev.yml up postgres db-init
 # Terminal 2: cd backend && ./gradlew bootRun
 # Terminal 3: cd frontend && bun dev
 ```
 
-El schema y los datos demo (evento id=1 + 50 asientos) ya no los crea el backend: los posee `docker/init-db/init-demo.sql`, ejecutado por el servicio `db-init` cada vez que corre `docker-compose up` (orden: `postgres` → `db-init` → `backend`). Backend usa `ddl-auto=validate`, así que necesita que `db-init` haya corrido al menos una vez contra el Postgres que esté usando.
+Schema and demo data (event id=1 + 50 seats) are no longer created by the backend: they are owned by `docker/init-db/init-demo.sql`, executed by the `db-init` service every time `docker-compose up` runs (order: `postgres` → `db-init` → `backend`). Backend uses `ddl-auto=validate`, so it requires `db-init` to have run at least once against the Postgres it's using.
 
-### Escalar a múltiples instancias backend
+### Scale to multiple backend instances
 
 ```bash
 docker-compose -f docker/docker-compose.dev.yml up --build --scale backend=3
 ```
 
-`backend` ya no expone puerto directo al host — `nginx` (puerto 8080) hace round-robin sobre las réplicas. Los eventos SSE se sincronizan entre instancias vía Redis Pub/Sub, así que un hold procesado por una réplica notifica igual a clientes conectados por SSE a otra réplica. Ver `backend/README.md` sección "Performance & Escalabilidad" para el detalle.
+`backend` no longer exposes a direct port to the host — `nginx` (port 8080) does round-robin load balancing across replicas. SSE events are synchronized between instances via Redis Pub/Sub, so a hold processed by one replica notifies SSE clients connected to another replica. See `backend/README.md` section "Performance & Scalability" for details.
 
 ## Makefile commands
 
-| Comando | Descripción |
+| Command | Description |
 |---------|-------------|
-| `make backend` | PostgreSQL + Backend en Docker (recomendado) |
-| `make backend-dev` | PostgreSQL (docker) + Backend (gradle con hot-reload) |
+| `make backend` | PostgreSQL + Backend in Docker (recommended) |
+| `make backend-dev` | PostgreSQL (docker) + Backend (gradle with hot-reload) |
 | `make frontend` | Vite dev server |
-| `make db-up` | Solo levanta PostgreSQL en Docker |
-| `make db-down` | Detiene PostgreSQL + Backend |
-| `make build-backend` | Build imagen Docker multi-stage |
-| `make dev` | Alias para `backend-dev` |
-| `make all` | Muestra instrucciones de inicio |
-| `make clean` | Limpia artifacts build |
-| `make help` | Muestra ayuda |
+| `make db-up` | Start PostgreSQL in Docker only |
+| `make db-down` | Stop PostgreSQL + Backend |
+| `make build-backend` | Build multi-stage Docker image |
+| `make dev` | Alias for `backend-dev` |
+| `make all` | Show startup instructions |
+| `make clean` | Clean build artifacts |
+| `make help` | Show help |
 
-## Puertos
+## Ports
 
-- **Backend** (vía nginx): `http://localhost:8080/api`
+- **Backend** (via nginx): `http://localhost:8080/api`
 - **Frontend**: `http://localhost:5173`
 - **PostgreSQL**: `localhost:5432`
-- **Redis**: interno a la red de Docker (no expuesto al host)
+- **Redis**: internal to Docker network (not exposed to host)
 
-## Estructura del proyecto
+## Project Structure
 
 ```
 seat-reservation/
@@ -110,8 +112,8 @@ seat-reservation/
 │   │       ├── repository/     # JPA repositories
 │   │       ├── service/        # Business logic (SeatHoldService, SeatLockRegistry)
 │   │       ├── web/            # REST controllers
-│   │       ├── sse/            # SSE handlers + fanout Redis (SeatEventListener, RedisSeatEventSubscriber)
-│       ├── config/         # RedisConfig (Pub/Sub topic + listener container)
+│   │       ├── sse/            # SSE handlers + Redis fanout (SeatEventListener, RedisSeatEventSubscriber)
+│   │       ├── config/         # RedisConfig (Pub/Sub topic + listener container)
 │   │       ├── event/          # Domain events
 │   │       └── exception/      # Custom exceptions
 │   ├── Dockerfile              # Multi-stage build
@@ -119,32 +121,33 @@ seat-reservation/
 │
 ├── frontend/                   # React + Vite application
 │   ├── src/
-│   │   ├── components/         # React components (SeatMap, Seat, etc.)
-│   │   ├── hooks/              # Custom hooks (useSeatMap, useSeatStream)
-│   │   ├── lib/                # Utilities (API client, clientId)
+│   │   ├── components/         # React components (SeatMap, Seat, etc.) - one folder per component
+│   │   ├── hooks/              # Custom hooks (useSeatsQuery, useSeatStream, mutations)
+│   │   ├── lib/                # Utilities (API client, clientId, queryClient, queryKeys)
+│   │   ├── store/              # Zustand state store (useUIStore)
 │   │   ├── App.tsx
 │   │   └── main.tsx
 │   ├── vite.config.ts
 │   └── package.json
 │
 ├── docker/
-│   ├── docker-compose.dev.yml  # PostgreSQL + db-init + Redis + Backend (escalable) + nginx
+│   ├── docker-compose.dev.yml  # PostgreSQL + db-init + Redis + Backend (scalable) + nginx
 │   ├── init-db/
 │   │   └── init-demo.sql       # Schema (CREATE TABLE) + seed demo data
 │   └── nginx/
-│       └── nginx.conf          # Load balancer round-robin sobre réplicas de backend
+│       └── nginx.conf          # Round-robin load balancer for backend replicas
 │
 └── Makefile                    # Build automation
 
 ```
 
-## Casos de Uso
+## Use Cases
 
-### Caso 0: Inicialización y carga del mapa de asientos
+### Case 0: Initialization and seat map loading
 
 ```
-docker-compose up          db-init container           Base de datos              Usuario abre app         Frontend
-────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+docker-compose up          db-init container           Database              User opens app         Frontend
+────────────────────────────────────────────────────────────────────────────────────────────────────────────
      │
      ├─ postgres healthy
      ├─ db-init: psql -f init-demo.sql
@@ -155,22 +158,22 @@ docker-compose up          db-init container           Base de datos            
      │                            ├─ CREATE Event(id=1, Demo Concert)
      │                            │  INSERT INTO events
      │
-     │                            ├─ CREATE 50 Seats (5 filas x 10)
+     │                            ├─ CREATE 50 Seats (5 rows x 10)
      │                            │  INSERT INTO seats (all status=AVAILABLE)
      │
      │                            ├─ COMMIT
      │
-     ├─ db-init exits 0 ──────────◄───────── Inicialización completada
-     ├─ backend arranca (ddl-auto=validate)
+     ├─ db-init exits 0 ──────────◄───────── Initialization complete
+     ├─ backend starts (ddl-auto=validate)
      │
-                                                    Usuario accede http://localhost:5173
+                                                    User accesses http://localhost:5173
                                                            │
-                                                           ├─ App.tsx monta
+                                                           ├─ App.tsx mounts
                                                            │
-                                                           ├─ useSeatMap(1)
+                                                           ├─ useSeatsQuery(1)
                                                            │  useEffect → GET /api/events/1/seats
      │                                                                          │
-     │────────────────────────────────▶ SELECT * FROM seats WHERE event_id = 1
+     │────────────────────────────▶ SELECT * FROM seats WHERE event_id = 1
      │
                                                            ◄────────────────── 200 OK [
                                                                 {id:1, row:A, seat:1, status:AVAILABLE},
@@ -179,101 +182,101 @@ docker-compose up          db-init container           Base de datos            
                                                                 {id:50, row:E, seat:10, status:AVAILABLE}
                                                               ]
                                                            │
-                                                           ├─ dispatch({ type: 'INIT', payload: [...] })
+                                                           ├─ setQueryData with response
                                                            │
                                                            ├─ useSeatStream(1)
                                                            │  new EventSource('/api/events/1/stream')
      │                                                                          │
      │◄──────────────────────────────── GET /api/events/1/stream (text/event-stream)
      │
-                                                           ├─ UI renderiza grid (5 filas x 10 asientos)
-                                                           │  Todos los asientos = VERDE (AVAILABLE, clickeables)
+                                                           ├─ UI renders grid (5 rows x 10 seats)
+                                                           │  All seats = GREEN (AVAILABLE, clickable)
                                                            │
-                                                           └─ EventSource escuchando:
+                                                           └─ EventSource listening:
                                                               addEventListener('seat-held', ...)
                                                               addEventListener('seat-reserved', ...)
                                                               addEventListener('seat-released', ...)
 ```
 
-**Resultado**: Backend trunca BD e inicializa demo en startup. Usuario abre app y ve mapa limpio con 50 asientos disponibles. EventSource listo para cambios en tiempo real.
+**Result**: Backend truncates DB and initializes demo on startup. User opens app and sees clean map with 50 available seats. EventSource ready for real-time changes.
 
 ---
 
-### Caso 1: Un usuario selecciona un asiento
+### Case 1: One user selects a seat
 
 ```
-Usuario A (navegador 1)          Backend                Base de datos
-─────────────────────────────────────────────────────────────────────
+User A (browser 1)               Backend                Database
+─────────────────────────────────────────────────────────────────
      │
-     ├─ Click Asiento 3 ─────────▶ POST /api/.../seats/3/hold
+     ├─ Click Seat 3 ────────────▶ POST /api/.../seats/3/hold
      │                             │
      │                             ├─ SeatLockRegistry.tryLock(3000ms)
-     │                             │  ✓ Lock adquirido
+     │                             │  ✓ Lock acquired
      │                             │
      │                             ├─ @Transactional doHoldTx()
-     │                             │  ├─ SELECT ... FOR UPDATE ───────▶ Row 3 bloqueado
+     │                             │  ├─ SELECT ... FOR UPDATE ───────▶ Row 3 locked
      │                             │  │
-     │                             │ Double-check:
+     │                             │  Double-check:
      │                             │  ├─ Status = AVAILABLE ✓
-     │                             │  ├─ Mutar estado ────────────────▶ status=HELD
+     │                             │  ├─ Update state ────────────────▶ status=HELD
      │                             │  │                                 held_by=UUID-A
      │                             │  │                                 held_until=now+120s
-     │                             │  └─ Evento: SeatHeldEvent(...)
+     │                             │  └─ Event: SeatHeldEvent(...)
      │                             │
-     │                             ├─ Commit transacción ─────────────▶ Row 3 desbloqueado
+     │                             ├─ Commit transaction ──────────────▶ Row 3 unlocked
      │                             │  ├─ EventListener @AFTER_COMMIT
-     │                             │  └─ Redis publish("seat-events") → cada instancia: SseBroadcaster.broadcast() local
+     │                             │  └─ Redis publish("seat-events") → each instance: SseBroadcaster.broadcast() local
      │                             │
      │                    ◄────────┤ SSE: {seat-held, seatId:3, ...}
      │                             │
      ◄────────────────────────────── 200 OK {expiresAt: "2026-07-11T02:20:00Z"}
      │
-     ├─ UI: Asiento 3 naranja (held-by-me)
+     ├─ UI: Seat 3 orange (held-by-me)
      │
      └─ HoldCountdown: 120s ⏱️  ⏱️  ⏱️
 
-Usuario B (navegador 2)          Backend                SSE stream
-─────────────────────────────────────────────────────────────────────
+User B (browser 2)               Backend                SSE stream
+─────────────────────────────────────────────────────────────────
      │                             │
-     │ EventSource conectado ◄─────┤ SSE: {seat-held, seatId:3, heldBy:UUID-A}
+     │ EventSource connected ◄─────┤ SSE: {seat-held, seatId:3, heldBy:UUID-A}
      │                             │
-     ├─ UI: Asiento 3 gris (held-by-other)
+     ├─ UI: Seat 3 gray (held-by-other)
      │
 ```
 
-**Resultado**: Asiento 3 aparece en naranja (A) y gris (B) en tiempo real.
+**Result**: Seat 3 appears orange (A) and gray (B) in real-time.
 
 ---
 
-### Caso 2: Dos usuarios intentan seleccionar el mismo asiento simultáneamente
+### Case 2: Two users try to select the same seat simultaneously
 
 ```
-Usuario A (UUID-A)               Usuario B (UUID-B)          Backend
-─────────────────────────────────────────────────────────────────────
+User A (UUID-A)                  User B (UUID-B)          Backend
+─────────────────────────────────────────────────────────────────
      │                                │
-     ├─ Click Asiento 7 ─────────────▶ Click Asiento 7
+     ├─ Click Seat 7 ─────────────────▶ Click Seat 7
      │  (t=0ms)                       │  (t=1ms)
      │                                │
-     ├─ holdSeat(7) ────────────────────────────────▶ Lock memoria: tryLock(7)
-     │                                               ✓ A adquiere lock
+     ├─ holdSeat(7) ────────────────────────────────▶ Memory lock: tryLock(7)
+     │                                               ✓ A acquires lock
      │
-     ├─ holdSeat(7) ──────────────────────────────▶ Lock memoria: tryLock(7)
-     │                                             ✗ B espera (bloqueado)
+     ├─ holdSeat(7) ──────────────────────────────▶ Memory lock: tryLock(7)
+     │                                             ✗ B waits (blocked)
      │
      ├─ POST /seats/7/hold ────────────────────────▶ SELECT FOR UPDATE (7)
-     │                                             ✓ A tiene lock DB
+     │                                             ✓ A has DB lock
      │
      ├─ Double-check: AVAILABLE ✓ ─────────────────▶ status = HELD
      │                                             │ held_by = UUID-A
      │                                             │ Commit
      │                                             │
-     │                                             ├─ Liberar lock (7) DB
+     │                                             ├─ Release lock (7) DB
      │                                             │
-     │                                             └─ Release lock (7) memoria
-     │                                                B: tryLock(7) ✓ adquiere
+     │                                             └─ Release lock (7) memory
+     │                                                B: tryLock(7) ✓ acquires
      │
      ◄───────────────────────────────────────────── 200 OK
-     │ Asiento 7 = NARANJA (held-by-me)
+     │ Seat 7 = ORANGE (held-by-me)
      │
      │                                │ B: POST /seats/7/hold
      │                                │  ├─ SELECT FOR UPDATE (7)
@@ -285,84 +288,84 @@ Usuario A (UUID-A)               Usuario B (UUID-B)          Backend
      │                                │
 ```
 
-**Resultado**: Solo A consigue el asiento. B obtiene 409 (sin doble reserva).
+**Result**: Only A gets the seat. B gets 409 (no double reservation).
 
 ---
 
-### Caso 3: Usuario confirma reserva
+### Case 3: User confirms reservation
 
 ```
-Usuario A (hold 3 asientos)      Backend                Base de datos
-─────────────────────────────────────────────────────────────────────
+User A (hold 3 seats)            Backend                Database
+─────────────────────────────────────────────────────────────────
      │
-     ├─ [3, 5, 7] Asientos naranja
-     │  (todos held-by-me)
+     ├─ [3, 5, 7] Seats orange
+     │  (all held-by-me)
      │
-     ├─ Click "Confirmar Reserva" ──▶ POST /api/.../reservations
+     ├─ Click "Confirm Reservation" ──▶ POST /api/.../reservations
      │                               │
      │                               ├─ SeatLockRegistry.tryLock([3,5,7])
-     │                               │  ✓ Todos los locks adquiridos (orden: 3,5,7)
+     │                               │  ✓ All locks acquired (order: 3,5,7)
      │                               │
      │                               ├─ @Transactional doConfirmTx()
      │                               │  ├─ SELECT FOR UPDATE WHERE id IN (3,5,7)
-     │                               │  │  ─────────────────────────────────────▶ Rows bloqueados
+     │                               │  │  ─────────────────────────────────────▶ Rows locked
      │                               │  │
-     │                               │  ├─ Double-check cada uno:
-     │                               │  │  ├─ Seat 3: HELD + held_by=UUID-A + no expirado ✓
-     │                               │  │  ├─ Seat 5: HELD + held_by=UUID-A + no expirado ✓
-     │                               │  │  └─ Seat 7: HELD + held_by=UUID-A + no expirado ✓
+     │                               │  ├─ Double-check each one:
+     │                               │  │  ├─ Seat 3: HELD + held_by=UUID-A + not expired ✓
+     │                               │  │  ├─ Seat 5: HELD + held_by=UUID-A + not expired ✓
+     │                               │  │  └─ Seat 7: HELD + held_by=UUID-A + not expired ✓
      │                               │  │
-     │                               │  ├─ Crear Reservation(id=123)
-     │                               │  └─ Para cada asiento:
+     │                               │  ├─ Create Reservation(id=123)
+     │                               │  └─ For each seat:
      │                               │     └─ status = RESERVED, reservation_id = 123
      │                               │
-     │                               ├─ Commit ────────────────────────────────▶ Rows desbloqueados
+     │                               ├─ Commit ────────────────────────────────▶ Rows unlocked
      │                               │  ├─ EventListener @AFTER_COMMIT
      │                               │  ├─ SeatReservedEvent(3), SeatReservedEvent(5), ...
-     │                               │  └─ Redis publish("seat-events") → cada instancia: SseBroadcaster.broadcast() local
+     │                               │  └─ Redis publish("seat-events") → each instance: SseBroadcaster.broadcast() local
      │                               │
-     │                    ◄──────────┤ SSE a TODOS: {seat-reserved, seatId:3/5/7}
+     │                    ◄──────────┤ SSE to ALL: {seat-reserved, seatId:3/5/7}
      │
      ◄────────────────────────────── 200 OK {reservationId: 123}
      │
-     ├─ UI: Asientos 3, 5, 7 = ROJO (reserved)
-     │       Botón "Confirmar" deshabilitado
-     │       Se muestra "Reserva confirmada"
+     ├─ UI: Seats 3, 5, 7 = RED (reserved)
+     │       "Confirm" button disabled
+     │       "Reservation confirmed" shown
      │
 
-Usuario C (navegador otro)         Backend                SSE stream
-─────────────────────────────────────────────────────────────────────
+User C (another browser)            Backend                SSE stream
+─────────────────────────────────────────────────────────────────
      │                             │
-     │ EventSource conectado ◄─────┤ SSE: {seat-reserved, seatId:3}
+     │ EventSource connected ◄─────┤ SSE: {seat-reserved, seatId:3}
      │                             │       {seat-reserved, seatId:5}
      │                             │       {seat-reserved, seatId:7}
      │
-     ├─ UI: Asientos 3, 5, 7 = ROJO (reserved)
-     │       No puede seleccionar
+     ├─ UI: Seats 3, 5, 7 = RED (reserved)
+     │       Cannot select
 ```
 
-**Resultado**: Reserva confirmada atómicamente. Todos ven rojo.
+**Result**: Reservation confirmed atomically. All see red.
 
 ---
 
-### Caso 4: Hold expira automáticamente (después de 120s)
+### Case 4: Hold expires automatically (after 120s)
 
 ```
-Usuario A (hold Asiento 9)       Backend Sweep Job (cada 15s)    Base de datos
+User A (hold Seat 9)             Backend Sweep Job (every 15s)    Database
 ────────────────────────────────────────────────────────────────────────────
      │
-     ├─ t=0s: Click Asiento 9
+     ├─ t=0s: Click Seat 9
      │        status = HELD
      │        held_until = t+120s
      │
-     ├─ t=15s: UI muestra "Expira en: 105s" ⏱️
+     ├─ t=15s: UI shows "Expires in: 105s" ⏱️
      │
-     ├─ t=30s: UI muestra "Expira en: 90s" ⏱️
+     ├─ t=30s: UI shows "Expires in: 90s" ⏱️
      │
-     ├─ t=120s: UI muestra "Expira en: 0s" ⏱️
+     ├─ t=120s: UI shows "Expires in: 0s" ⏱️
      │
      │                                                  │
-     │                   t=120s: Sweep job corre ──────▶ SELECT * FROM seats
+     │                   t=120s: Sweep job runs ───────▶ SELECT * FROM seats
      │                           WHERE status='HELD'
      │                           AND held_until < now
      │                                                  │
@@ -370,138 +373,138 @@ Usuario A (hold Asiento 9)       Backend Sweep Job (cada 15s)    Base de datos
      │                           │
      │                           ├─ @Transactional doExpireTx()
      │                           │  ├─ SELECT FOR UPDATE WHERE id=9
-     │                           │  │  ───────────────────────────────▶ Row bloqueado
+     │                           │  │  ───────────────────────────────▶ Row locked
      │                           │  │
      │                           │  ├─ Double-check:
      │                           │  │  ├─ status = HELD ✓
      │                           │  │  └─ held_until < now ✓
      │                           │  │
-     │                           │  └─ Mutar: status = AVAILABLE
+     │                           │  └─ Update: status = AVAILABLE
      │                           │     held_by = NULL
      │                           │     held_until = NULL
-     │                           │  ───────────────────────────────▶ Row actualizado
+     │                           │  ───────────────────────────────▶ Row updated
      │                           │
      │                           ├─ Commit
      │                           │  ├─ EventListener @AFTER_COMMIT
      │                           │  └─ SeatReleasedEvent(9)
      │                           │
-     │                ◄──────────┤ SSE a TODOS: {seat-released, seatId:9}
+     │                ◄──────────┤ SSE to ALL: {seat-released, seatId:9}
      │
-     ├─ UI: Asiento 9 se pone VERDE (available)
-     │       Contador desaparece
-     │       Puede seleccionar de nuevo
+     ├─ UI: Seat 9 becomes GREEN (available)
+     │       Counter disappears
+     │       Can select again
      │
 
-Usuario B (navegador otro)        Backend                SSE stream
+User B (another browser)          Backend                SSE stream
 ────────────────────────────────────────────────────────────────────
-     │ EventSource conectado ◄────┤ SSE: {seat-released, seatId:9}
+     │ EventSource connected ◄────┤ SSE: {seat-released, seatId:9}
      │
-     ├─ UI: Asiento 9 se pone VERDE
-     │       Puede seleccionar
+     ├─ UI: Seat 9 becomes GREEN
+     │       Can select
 ```
 
-**Resultado**: Hold expira después de 120s. Asiento vuelve a estar disponible para todos.
+**Result**: Hold expires after 120s. Seat becomes available to all again.
 
 ---
 
-## Flujo de concurrencia
+## Concurrency Flow
 
-### 1. Seleccionar un asiento (hold)
+### 1. Select a seat (hold)
 ```
-Cliente → POST /api/events/1/seats/3/hold
+Client → POST /api/events/1/seats/3/hold
          ↓
-SeatLockRegistry (lock en memoria con timeout)
+SeatLockRegistry (in-memory lock with timeout)
          ↓
-Transacción DB: SELECT ... FOR UPDATE (pessimistic lock)
+DB Transaction: SELECT ... FOR UPDATE (pessimistic lock)
          ↓
-Double-check: ¿status == AVAILABLE? ¿held_until expirado?
+Double-check: status == AVAILABLE? held_until expired?
          ↓
-Actualizar: status = HELD, held_by = clientId, held_until = now + 120s
+Update: status = HELD, held_by = clientId, held_until = now + 120s
          ↓
-Publicar evento → SSE → Todos los navegadores sse actualizado
-```
-
-### 2. Confirmar reserva (confirm)
-```
-Cliente con asientos held-by-me → POST /api/events/1/reservations
-         ↓
-SeatLockRegistry + SELECT ... FOR UPDATE (misma secuencia)
-         ↓
-Double-check: ¿Todos held por este clientId? ¿Aún vigentes?
-         ↓
-Crear Reservation, actualizar status = RESERVED
-         ↓
-Evento SSE → Todos ven asiento RESERVED
+Publish event → SSE → All browsers updated
 ```
 
-### 3. Expiración automática (sweep)
+### 2. Confirm reservation (confirm)
 ```
-Job periódico (cada 15s) → Busca asientos HELD con held_until < now
+Client with held-by-me seats → POST /api/events/1/reservations
          ↓
-Para cada asiento: mismo lock + SELECT ... FOR UPDATE
+SeatLockRegistry + SELECT ... FOR UPDATE (same sequence)
          ↓
-Double-check: ¿Aún expirado?
+Double-check: All held by this clientId? Still valid?
          ↓
-Revertir: status = AVAILABLE, held_by = null
+Create Reservation, update status = RESERVED
          ↓
-Evento SSE → Todos ven asiento disponible de nuevo
-```
-
-## Frontend: Sincronización SSE
-
-```
-1. EventSource abierto → /api/events/1/stream
-2. Escucha eventos: seat-held, seat-released, seat-reserved
-3. Actualiza estado local vía reducer (useSeatMap)
-4. Reconexión automática: refetch completo del mapa
-5. UI refleja cambios instantáneamente
+SSE Event → All see seat RESERVED
 ```
 
-## Experiencia del usuario
+### 3. Automatic expiration (sweep)
+```
+Periodic job (every 15s) → Find HELD seats with held_until < now
+         ↓
+For each seat: same lock + SELECT ... FOR UPDATE
+         ↓
+Double-check: Still expired?
+         ↓
+Revert: status = AVAILABLE, held_by = null
+         ↓
+SSE Event → All see seat available again
+```
 
-1. Abrir `http://localhost:5173` en navegador
-2. Mapa de asientos carga automáticamente (seed de `docker/init-db/init-demo.sql`)
-3. Hacer click en un asiento → Se pone **naranja** (held-by-me)
-4. El asiento expira después de 120 segundos → Se pone gris (available)
-5. Múltiples asientos → Click en botón "Confirmar Reserva"
-6. Asiento pasa a **rojo** (reserved) y aparece en otros navegadores
+## Frontend: SSE Synchronization
 
-## Endpoints API
+```
+1. EventSource opened → /api/events/1/stream
+2. Listens for events: seat-held, seat-released, seat-reserved
+3. Updates React Query cache via setQueryData
+4. Auto-reconnect: full map refetch on reconnect
+5. UI reflects changes instantly
+```
 
-Dinámicos por evento. Demo usa **eventId=1** (único evento).
+## User Experience
 
-### Asientos
-- `GET /api/events/{eventId}/seats` - Mapa completo de asientos
-- `POST /api/events/{eventId}/seats/{seatId}/hold` - Seleccionar 1 asiento
-- `POST /api/events/{eventId}/seats/hold` - Seleccionar N asientos
-- `DELETE /api/events/{eventId}/seats/{seatId}/hold` - Liberar asiento
+1. Open `http://localhost:5173` in browser
+2. Seat map loads automatically (seed from `docker/init-db/init-demo.sql`)
+3. Click a seat → Turns **orange** (held-by-me)
+4. Seat expires after 120 seconds → Turns gray (available)
+5. Multiple seats → Click "Confirm Reservation" button
+6. Seat turns **red** (reserved) and appears in other browsers
 
-### Reservas
-- `POST /api/events/{eventId}/reservations` - Confirmar reserva (multi-asiento)
+## API Endpoints
+
+Dynamic per event. Demo uses **eventId=1** (single event).
+
+### Seats
+- `GET /api/events/{eventId}/seats` - Full seat map
+- `POST /api/events/{eventId}/seats/{seatId}/hold` - Select 1 seat
+- `POST /api/events/{eventId}/seats/hold` - Select N seats
+- `DELETE /api/events/{eventId}/seats/{seatId}/hold` - Release seat
+
+### Reservations
+- `POST /api/events/{eventId}/reservations` - Confirm reservation (multi-seat)
 
 ### SSE
 - `GET /api/events/{eventId}/stream` - EventSource stream
-  - Eventos: `seat-held`, `seat-released`, `seat-reserved`
+  - Events: `seat-held`, `seat-released`, `seat-reserved`
 
-No hay endpoint de admin/reinit por HTTP. El seed (schema + truncate + datos demo) corre vía `docker/init-db/init-demo.sql`, ejecutado por el servicio `db-init` cada vez que se hace `docker-compose up` (ver sección "Iniciar").
+No HTTP admin/reinit endpoint. Seed (schema + truncate + demo data) runs via `docker/init-db/init-demo.sql`, executed by `db-init` service each `docker-compose up` run (see "Getting Started" section).
 
-## Desarrollo
+## Development
 
 ### Backend
-Ver [backend/README.md](backend/README.md)
+See [backend/README.md](backend/README.md)
 
 ### Frontend
-Ver [frontend/README.md](frontend/README.md)
+See [frontend/README.md](frontend/README.md)
 
-## Notas de diseño
+## Design Notes
 
-- `X-Client-Id`: UUID generado por cliente (simplificación, no producción)
-- **Resync en reconexión**: Refetch completo (simple y siempre correcto)
-- **Sweep**: Expiración perezosa en double-check + job periódico (15s)
-- **Virtual threads**: `spring.threads.virtual.enabled=true` para escalabilidad
-- **Multi-stage Docker**: Reduce tamaño de imagen ~30-40%
+- `X-Client-Id`: UUID generated by client (simplification, not for production)
+- **Resync on reconnect**: Full refetch (simple and always correct)
+- **Sweep**: Lazy expiration on double-check + periodic job (15s)
+- **Virtual threads**: `spring.threads.virtual.enabled=true` for scalability
+- **Multi-stage Docker**: Reduces image size ~30-40%
 
-## Escalabilidad
+## Scalability
 
-- `SeatLockRegistry` es por JVM → múltiples instancias: DB lock garantiza corrección, pero timeout fail-fast se pierde
-- Para producción: Flyway/Liquibase, Spring Security, Redis para eventos cross-instance
+- `SeatLockRegistry` is per JVM → multiple instances: DB lock guarantees correctness, but timeout fail-fast is lost
+- For production: Flyway/Liquibase, Spring Security, Redis for cross-instance events

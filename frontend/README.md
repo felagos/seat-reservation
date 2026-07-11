@@ -1,107 +1,119 @@
-# Frontend - Sistema de Reserva de Asientos
+# Frontend - Seat Reservation System
 
-React 19 + TypeScript + Vite + Material UI - UI responsiva para reserva de asientos en tiempo real.
+React 19 + TypeScript + Vite + Material UI - Responsive UI for real-time seat reservation.
 
-## Características
+## Features
 
-- ✅ **Real-time sync**: EventSource (SSE) para actualizaciones instantáneas
-- ✅ **Optimistic UI**: Cambios locales inmediatos con reconciliación
-- ✅ **Material UI**: Componentes profesionales, tema responsive
-- ✅ **Hot-reload**: Vite dev server para desarrollo rápido
-- ✅ **TypeScript**: Tipado seguro end-to-end
-- ✅ **Bun**: Package manager ultra-rápido
+- ✅ **Real-time sync**: EventSource (SSE) for instant updates
+- ✅ **Optimistic UI**: Immediate local changes with reconciliation
+- ✅ **Material UI**: Professional components, responsive theme
+- ✅ **Hot-reload**: Vite dev server for fast development
+- ✅ **TypeScript**: Type-safe end-to-end
+- ✅ **Bun**: Ultra-fast package manager
+- ✅ **TanStack Query**: Server state management
+- ✅ **Zustand**: Lightweight client state
+- ✅ **CSS Modules**: Component-scoped styling
 
-## Estructura
+## Structure
 
 ```
 src/
-├── components/              → Componentes React
-│   ├── Seat.tsx             # Botón individual de asiento
-│   ├── SeatMap.tsx          # Grid de asientos por fila
-│   ├── HoldCountdown.tsx    # Timer de expiración
-│   └── ReservationBar.tsx   # Barra de acción + feedback
+├── components/              → React components (one folder per component)
+│   ├── Seat/
+│   │   ├── Seat.tsx
+│   │   └── Seat.module.css
+│   ├── SeatMap/
+│   │   ├── SeatMap.tsx
+│   │   └── SeatMap.module.css
+│   ├── ReservationBar/
+│   │   ├── ReservationBar.tsx
+│   │   └── ReservationBar.module.css
+│   └── HoldCountdown/
+│       ├── HoldCountdown.tsx
+│       └── HoldCountdown.module.css
 
 ├── hooks/                   → Custom hooks
-│   ├── useSeatMap.ts        # State + reducers para mapa de asientos
-│   └── useSeatStream.ts     # EventSource + sincronización SSE
+│   ├── useSeatsQuery.ts     # TanStack Query for seat data
+│   ├── useHoldSeatMutation.ts
+│   ├── useReleaseSeatMutation.ts
+│   ├── useConfirmReservationMutation.ts
+│   └── useSeatStream.ts     # EventSource + React Query cache sync
 
-├── lib/                     → Utilidades
-│   ├── api.ts               # Wrappers fetch → backend
-│   └── clientId.ts          # UUID generado y almacenado
+├── lib/                     → Utilities
+│   ├── api.ts               # Fetch wrappers to backend
+│   ├── queryClient.ts       # TanStack Query client
+│   ├── queryKeys.ts         # Query key factory
+│   └── clientId.ts          # Generated and stored UUID
 
-├── types.ts                 # Tipos TypeScript compartidos
-├── theme.ts                 # Tema Material UI
-├── App.tsx                  # Componente raíz
-├── main.tsx                 # Entry point React
-└── index.css                # Estilos globales
+├── store/                   → State management
+│   └── useUIStore.ts        # Zustand for UI errors
+
+├── types.ts                 # Shared TypeScript types
+├── theme.ts                 # Material UI theme
+├── App.tsx                  # Root component
+├── main.tsx                 # React entry point
+└── index.css                # Global styles
 
 public/
 └── favicon.svg
-
-.env                         # Variables de entorno
-.env.local                   # Overrides locales (git-ignored)
-vite.config.ts              # Config de Vite
-tsconfig.json               # Config de TypeScript
-package.json                # Deps + scripts
-bun.lock                     # Lock file (Bun)
 ```
 
-## Desarrollo
+## Development
 
-### Requisitos
-- Node.js 18+ (o Bun 1.3+)
-- Backend corriendo en `localhost:8080`
+### Requirements
+- Node.js 18+ (or Bun 1.3+)
+- Backend running on `localhost:8080`
 
 ### Install
 
 ```bash
 cd frontend
 bun install
-# o: npm install / yarn install
+# or: npm install / yarn install
 ```
 
 ### Dev server
 
 ```bash
 bun dev
-# Abre http://localhost:5173
-# Vite proxea /api → http://localhost:8080
+# Opens http://localhost:5173
+# Vite proxies /api → http://localhost:8080
 ```
 
 ### Build
 
 ```bash
 bun run build
-# Genera dist/ → listo para production
+# Generates dist/ → ready for production
 ```
 
 ### Lint
 
 ```bash
 bun run lint
-# Ejecuta oxlint (ESLint alternativa, más rápida)
+# Runs oxlint (faster ESLint alternative)
 ```
 
-## Flujo de datos
+## Data Flow
 
-### 1. Inicialización
-
-```
-App monta con EVENT_ID = 1
-  ↓
-useSeatMap(1) → GET /api/events/1/seats
-  ↓
-Seed demo ya corrió vía docker/init-db/init-demo.sql (servicio db-init)
-  ↓
-useReducer dispatch INIT con 50 asientos
-  ↓
-SeatMap renderiza
-```
-
-### 2. EventSource (SSE) se abre
+### 1. Initialization
 
 ```
-useSeatStream(1, ...) en App
+App mounts with EVENT_ID = 1
+  ↓
+useSeatsQuery(1) → GET /api/events/1/seats
+  ↓
+Seed demo already ran via docker/init-db/init-demo.sql (db-init service)
+  ↓
+React Query setQueryData with 50 seats
+  ↓
+SeatMap renders
+```
+
+### 2. EventSource (SSE) opens
+
+```
+useSeatStream(1) in App
   ↓
 new EventSource('/api/events/1/stream')
   ↓
@@ -109,49 +121,48 @@ addEventListener('seat-held', ...)
 addEventListener('seat-released', ...)
 addEventListener('seat-reserved', ...)
   ↓
-Actualiza local state vía dispatch
+Update React Query cache via setQueryData
   ↓
-Componentes re-renderizan
+Components re-render
 ```
 
-### 3. Usuario selecciona asiento
+### 3. User selects a seat
 
 ```
 Seat.tsx onClick
   ↓
 handleHold(seatId)
   ↓
-// Optimistic UI: actualiza estado local inmediatamente
-dispatch({ type: 'SEAT_HELD', payload: {...}, clientId: ... })
+holdMutation.mutate(seatId)
   ↓
-holdSeat(1, seatId) → POST /api/events/1/seats/3/hold
+POST /api/events/1/seats/3/hold
   ↓
-// Reconcilia con respuesta:
-  - Si 200: OK, fecha de expiración del servidor
-  - Si 409: revertir state, mostrar error en Snackbar
+Reconcile with response:
+  - If 200: OK, server expiration date
+  - If 409: revert state, show error in Snackbar
   ↓
-// En paralelo, SSE notifica a otros clientes:
-evento 'seat-held' llega → su estado se actualiza
+In parallel, SSE notifies other clients:
+  'seat-held' event arrives → their state updates
 ```
 
-### 4. Usuario confirma reserva
+### 4. User confirms reservation
 
 ```
-ReservationBar botón "Confirmar"
+ReservationBar "Confirm" button
   ↓
 handleConfirm()
   ↓
-confirmReservation(1, [seatIds])
+confirmMutation.mutate([seatIds])
   ↓
 POST /api/events/1/reservations { seatIds: [3, 5] }
   ↓
-Si 200: resync() → refetch full mapa
-Si 409/410: mostrar error, mantener estado local
+If 200: invalidateQueries → refetch full map
+If 409/410: show error, keep local state
   ↓
-SSE notifica a otros: 'seat-reserved'
+SSE notifies others: 'seat-reserved'
 ```
 
-## Componentes
+## Components
 
 ### `Seat.tsx`
 ```tsx
@@ -162,72 +173,79 @@ SSE notifica a otros: 'seat-reserved'
 />
 ```
 
-Renderiza:
-- Status = AVAILABLE: Chip verde (clickeable)
-- Status = HELD + heldByMe: Chip naranja (clickeable para liberar)
-- Status = HELD: Chip gris (deshabilitado)
-- Status = RESERVED: Chip rojo (deshabilitado)
+Renders:
+- Status = AVAILABLE: Green chip (clickable)
+- Status = HELD + heldByMe: Orange chip (clickable to release)
+- Status = HELD: Gray chip (disabled)
+- Status = RESERVED: Red chip (disabled)
 
 ### `SeatMap.tsx`
-Agrupa asientos por fila, renderiza rejilla con `<Seat>` componentes.
+Groups seats by row, renders grid with `<Seat>` components.
 
 ### `HoldCountdown.tsx`
-Progress bar que cuenta hacia atrás desde `expiresAt`. Puramente cosmético (servidor es autoridad).
+Progress bar counting down from `expiresAt`. Purely cosmetic (server is authority).
 
 ### `ReservationBar.tsx`
-- Barra fija abajo
-- Muestra asientos selected (held-by-me)
-- Botón "Confirmar Reserva" habilitado solo si ≥1 asiento
-- Snackbar para errores (409, 410, etc.)
+- Fixed bar at bottom
+- Shows selected seats (held-by-me)
+- "Confirm Reservation" button enabled only if ≥1 seat
+- Snackbar for errors (409, 410, etc.)
 
 ### `App.tsx`
-Orquesta todo:
-- Inicializa y sincroniza estado
-- Abre EventSource
-- Maneja clics en asientos
-- Confirma reserva
+Orchestrates everything:
+- Initializes and syncs state
+- Opens EventSource
+- Handles seat clicks
+- Confirms reservation
 
 ## Hooks
 
-### `useSeatMap(eventId)`
+### `useSeatsQuery(eventId)`
 ```ts
-const { seats, loading, dispatch, resync } = useSeatMap(1);
+const { data: seats = [], isLoading } = useSeatsQuery(1);
 
-// seats: array de Seat
-// loading: boolean
-// dispatch: reducer para actualizar state
-// resync: fn() → refetch mapa desde backend
+// seats: array of Seat
+// isLoading: boolean
+// Replaces initial fetch + loading state from useSeatMap
 ```
 
-Actions:
-- `INIT` → carga inicial
-- `SEAT_HELD` → otro cliente o SSE notifica
-- `SEAT_RELEASED`
-- `SEAT_RESERVED`
-- `RESYNC` → reemplaza todo mapa
-- `ERROR`
-
-### `useSeatStream(eventId, onSeatHeld, onSeatReleased, onSeatReserved, onResync)`
+### `useHoldSeatMutation(eventId, options)`
 ```ts
-useSeatStream(
-  1,
-  (data) => dispatch({type: 'SEAT_HELD', payload: data, clientId: ...}),
-  (data) => dispatch({type: 'SEAT_RELEASED', payload: data}),
-  (data) => dispatch({type: 'SEAT_RESERVED', payload: data}),
-  resync
-);
+const mutation = useHoldSeatMutation(1, { 
+  onError: (err) => setError(err.message) 
+});
+mutation.mutate(seatId);
 ```
 
-Maneja:
-- Abre EventSource
-- Escucha eventos por nombre
-- Detecta reconexiones (error → open) → dispara onResync
-- Limpia on unmount
+### `useReleaseSeatMutation(eventId, options)`
+```ts
+const mutation = useReleaseSeatMutation(1);
+mutation.mutate(seatId);
+```
+
+### `useConfirmReservationMutation(eventId, options)`
+```ts
+const mutation = useConfirmReservationMutation(1);
+mutation.mutate([3, 5, 7]);
+// On success: invalidates seat query, triggers refetch
+```
+
+### `useSeatStream(eventId)`
+```ts
+useSeatStream(1);
+// No callbacks needed — updates React Query cache directly
+// Handles:
+// - Opens EventSource
+// - Listens for events by name
+// - Updates cache via setQueryData
+// - Auto-detects reconnects (error → open) → invalidates
+// - Cleans up on unmount
+```
 
 ## API Client (`lib/api.ts`)
 
 ```ts
-// All funciones envían X-Client-Id header
+// All functions send X-Client-Id header
 await getSeatMap(eventId)              // GET /api/events/{eventId}/seats
 await holdSeat(eventId, seatId)        // POST /api/events/{eventId}/seats/{seatId}/hold
 await holdMultipleSeats(eventId, [...])// POST /api/events/{eventId}/seats/hold
@@ -235,16 +253,16 @@ await releaseSeat(eventId, seatId)     // DELETE /api/events/{eventId}/seats/{se
 await confirmReservation(eventId, [...])// POST /api/events/{eventId}/reservations
 ```
 
-Base URL: `VITE_API_URL` variable entorno (default: `/api` con Vite proxy en dev)
+Base URL: `VITE_API_URL` environment variable (default: `/api` with Vite proxy in dev)
 
-## Variables de entorno
+## Environment Variables
 
 `.env`:
 ```
 VITE_API_URL=/api
 ```
 
-Vite proxy en `vite.config.ts`:
+Vite proxy in `vite.config.ts`:
 ```ts
 proxy: {
   '/api': {
@@ -254,22 +272,22 @@ proxy: {
 }
 ```
 
-Flujo:
-1. Frontend en `http://localhost:5173`
-2. Cliente fetch `/api/...` 
-3. Vite dev server intercepta
-4. Proxea a `http://localhost:8080/api/...`
-5. Backend responde
+Flow:
+1. Frontend on `http://localhost:5173`
+2. Client fetch `/api/...` 
+3. Vite dev server intercepts
+4. Proxies to `http://localhost:8080/api/...`
+5. Backend responds
 
-## Tema Material UI (`theme.ts`)
+## Material UI Theme (`theme.ts`)
 
-Colores de estado:
-- AVAILABLE → success (verde)
-- HELD (by me) → warning (naranja)
-- HELD (by other) → default (gris)
-- RESERVED → error (rojo)
+Status colors:
+- AVAILABLE → success (green)
+- HELD (by me) → warning (orange)
+- HELD (by other) → default (gray)
+- RESERVED → error (red)
 
-## Tipos (`types.ts`)
+## Types (`types.ts`)
 
 ```ts
 type SeatStatus = 'AVAILABLE' | 'HELD' | 'RESERVED';
@@ -290,24 +308,39 @@ interface Reservation {
 }
 ```
 
+## State Management
+
+### React Query (`lib/queryClient.ts`, hooks)
+Server state: seat data
+- `useSeatsQuery()` reads cache
+- Mutations (`useHoldSeatMutation`, etc.) update server and optionally invalidate/refetch
+- `useSeatStream()` patches cache on SSE events without network roundtrip
+- `setQueryData()` for optimistic/reactive updates
+
+### Zustand (`store/useUIStore.ts`)
+Client state: UI errors
+- `useUIStore((s) => s.error)` reads error
+- `setError()` from mutation `onError` handlers
+- `clearError()` from Snackbar dismiss
+
 ## Performance
 
-- **Vite**: ~instantáneo HMR para cambios en source
-- **TypeScript**: Compilación rápida (tsc -b)
-- **Material UI**: Componentes ligeros, CSS-in-JS optimizado
-- **EventSource**: Conexión única, low overhead vs polling
-- **Virtual threads backend**: Maneja miles de SSE connections
+- **Vite**: ~instant HMR for source changes
+- **TypeScript**: Fast compilation (tsc -b)
+- **Material UI**: Lightweight components, optimized CSS-in-JS
+- **EventSource**: Single connection, low overhead vs polling
+- **Virtual threads backend**: Handles thousands of SSE connections
 
 ## Troubleshooting
 
-| Problema | Causa | Solución |
-|----------|-------|----------|
-| 404 /api/... | Backend no corriendo o proxy mal | `make backend` en otra terminal |
-| SSE no conecta | CORS o proxy issue | Verificar vite.config.ts, logs del navegador |
-| Asiento naranja en ambos navegadores | heldByMe siempre true | Verificar useSeatMap.ts line 29 - debe comparar clientId |
-| "X-Client-Id header missing" | API client no envía header | Verificar lib/api.ts headers |
-| Timeout en hold | Backend lock timeout | Aumentar `seat.lock.timeout-ms` en backend config |
-| Hold no expira visualmente | Timer solo cosmético | Refetch en background o SSE de expiración |
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| 404 /api/... | Backend not running or proxy misconfigured | `make backend` in another terminal |
+| SSE not connecting | CORS or proxy issue | Check vite.config.ts, browser console |
+| Seat orange in both browsers | heldByMe always true | Check App.tsx clientId comparison |
+| "X-Client-Id header missing" | API client not sending header | Check lib/api.ts headers |
+| Timeout on hold | Backend lock timeout | Increase `seat.lock.timeout-ms` in backend config |
+| Hold not visually expiring | Timer is cosmetic only | Refetch in background or use SSE for expiration |
 
 ## Build & Deployment
 
@@ -319,22 +352,21 @@ bun dev
 ### Production
 ```bash
 bun run build
-# Genera dist/
-# Deployar dist/ a servidor web (nginx, Vercel, etc.)
+# Generates dist/
+# Deploy dist/ to web server (nginx, Vercel, etc.)
 
-# Si backend en misma origin (e.g., /api proxy vía nginx):
-# VITE_API_URL=/api (default, no cambio)
+# If backend on same origin (e.g., /api proxy via nginx):
+# VITE_API_URL=/api (default, no change)
 
-# Si backend en dominio diferente:
+# If backend on different domain:
 # VITE_API_URL=https://api.example.com
 ```
 
-## Browsers soportados
+## Supported Browsers
 
 - Chrome/Edge 90+
 - Firefox 88+
 - Safari 14+
 - Opera 76+
 
-(Cualquier navegador moderno con soporte EventSource)
-
+(Any modern browser with EventSource support)
