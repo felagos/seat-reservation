@@ -7,11 +7,13 @@ import { useHoldSeatMutation } from './hooks/useHoldSeatMutation';
 import { useReleaseSeatMutation } from './hooks/useReleaseSeatMutation';
 import { useConfirmReservationMutation } from './hooks/useConfirmReservationMutation';
 import { useUIStore } from './store/useUIStore';
+import { useSeatsStore } from './store/useSeatsStore';
 
 const EVENT_ID = 1;
 
 function App() {
-  const { data: seats = [], isLoading } = useSeatsQuery(EVENT_ID);
+  const { isLoading } = useSeatsQuery(EVENT_ID);
+  const seats = useSeatsStore((s) => s.seats);
   useSeatStream(EVENT_ID);
 
   const error = useUIStore((s) => s.error);

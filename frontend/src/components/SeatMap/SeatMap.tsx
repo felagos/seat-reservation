@@ -1,4 +1,4 @@
-import { Grid, Box, Typography } from '@mui/material';
+import { Grid2 as Grid, Box, Typography } from '@mui/material';
 import type { Seat as SeatType } from '../../types';
 import { Seat } from '../Seat/Seat';
 import styles from './SeatMap.module.css';
@@ -35,7 +35,7 @@ export function SeatMap({ seats, onHold, onRelease }: SeatMapProps) {
               {grouped[row]
                 .sort((a, b) => parseInt(a.seatNumber) - parseInt(b.seatNumber))
                 .map((seat) => (
-                  <Grid item key={seat.id}>
+                  <Grid key={seat.id}>
                     <Seat seat={seat} onHold={onHold} onRelease={onRelease} />
                   </Grid>
                 ))}
