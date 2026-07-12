@@ -4,6 +4,12 @@ interface FetchOptions extends RequestInit {
   headers?: Record<string, string>
 }
 
+interface ErrorResponse {
+  code: string
+  message: string
+  seatId: number | null
+}
+
 export class HttpClient {
   private baseUrl: string
   private defaultHeaders?: Record<string, string>
@@ -34,10 +40,15 @@ export class HttpClient {
 
     if (!response.ok) {
       const text = await response.text()
-      throw new Error(text || `HTTP ${response.status}`)
+      throw new Error(parseErrorMessage(text) || `HTTP ${response.status}`)
     }
 
-    return response.json() as Promise<T>
+    if (response.status === 204) {
+      return undefined as T
+    }
+
+    const text = await response.text()
+    return text ? (JSON.parse(text) as T) : (undefined as T)
   }
 
   async get<T>(path: string): Promise<T> {
@@ -51,17 +62,22 @@ export class HttpClient {
     })
   }
 
-  async del<T>(path: string): Promise<T | void> {
-    try {
-      return await this.request<T>(`${this.baseUrl}${path}`, {
-        method: 'DELETE',
-      })
-    } catch (error) {
-      if (error instanceof Error && error.message === 'HTTP 204') {
-        return
-      }
-      throw error
-    }
+  async del(path: string): Promise<void> {
+    await this.request<void>(`${this.baseUrl}${path}`, {
+      method: 'DELETE',
+    })
+  }
+}
+
+function parseErrorMessage(text: string): string | undefined {
+  if (!text) {
+    return undefined
+  }
+  try {
+    const parsed = JSON.parse(text) as ErrorResponse
+    return parsed.message
+  } catch {
+    return text
   }
 }
 

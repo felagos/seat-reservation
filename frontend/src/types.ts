@@ -9,9 +9,15 @@ export interface Seat {
   expiresAt?: string;
 }
 
+export interface SeatHoldResponse {
+  seatId: number;
+  rowLabel: string;
+  seatNumber: string;
+  expiresAt: string;
+}
+
 export interface SeatHeldPayload {
   seatId: number;
-  heldBy: string;
   expiresAt: string;
 }
 

@@ -1,19 +1,23 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { SeatHeldPayload, SeatReleasedPayload, SeatReservedPayload } from '../types';
-import { getOrCreateClientId } from '../lib/clientId';
+import type { Seat, SeatHeldPayload, SeatReleasedPayload, SeatReservedPayload } from '../types';
 import { seatsKey } from '../lib/queryKeys';
-import { useSeatsStore } from '../store/useSeatsStore';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 export function useSeatStream(eventId: number) {
   const queryClient = useQueryClient();
-  const seatHeld = useSeatsStore((s) => s.seatHeld);
-  const seatReleased = useSeatsStore((s) => s.seatReleased);
-  const seatReserved = useSeatsStore((s) => s.seatReserved);
   const eventSourceRef = useRef<EventSource | null>(null);
   const hadErrorRef = useRef(false);
+
+  const patchSeat = useCallback(
+    (seatId: number, updater: (seat: Seat) => Seat) => {
+      queryClient.setQueryData<Seat[]>(seatsKey(eventId), (seats) =>
+        seats?.map((s) => (s.id === seatId ? updater(s) : s))
+      );
+    },
+    [eventId, queryClient]
+  );
 
   const setupEventSource = useCallback(() => {
     if (eventSourceRef.current) {
@@ -26,17 +30,19 @@ export function useSeatStream(eventId: number) {
 
     eventSource.addEventListener('seat-held', (event: MessageEvent) => {
       const payload = JSON.parse(event.data) as SeatHeldPayload;
-      seatHeld(payload, getOrCreateClientId());
+      // heldByMe is never set from the stream (the payload doesn't carry the holder's
+      // identity — see backend SeatHeldPayload) — only this client's own hold mutation sets it.
+      patchSeat(payload.seatId, (s) => ({ ...s, status: 'HELD', expiresAt: payload.expiresAt }));
     });
 
     eventSource.addEventListener('seat-released', (event: MessageEvent) => {
       const payload = JSON.parse(event.data) as SeatReleasedPayload;
-      seatReleased(payload);
+      patchSeat(payload.seatId, (s) => ({ ...s, status: 'AVAILABLE', heldByMe: false, expiresAt: undefined }));
     });
 
     eventSource.addEventListener('seat-reserved', (event: MessageEvent) => {
       const payload = JSON.parse(event.data) as SeatReservedPayload;
-      seatReserved(payload);
+      patchSeat(payload.seatId, (s) => ({ ...s, status: 'RESERVED', heldByMe: false, expiresAt: undefined }));
     });
 
     eventSource.addEventListener('open', () => {
@@ -49,7 +55,7 @@ export function useSeatStream(eventId: number) {
     eventSource.addEventListener('error', () => {
       hadErrorRef.current = true;
     });
-  }, [eventId, queryClient, seatHeld, seatReleased, seatReserved]);
+  }, [eventId, queryClient, patchSeat]);
 
   useEffect(() => {
     setupEventSource();

@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Box, Typography, LinearProgress } from '@mui/material';
+import { HOLD_TTL_SECONDS } from '../../lib/constants';
 import styles from './HoldCountdown.module.css';
 
 interface HoldCountdownProps {
   expiresAt: string;
+  totalSeconds?: number;
 }
 
-export function HoldCountdown({ expiresAt }: HoldCountdownProps) {
+export function HoldCountdown({ expiresAt, totalSeconds = HOLD_TTL_SECONDS }: HoldCountdownProps) {
   const [remaining, setRemaining] = useState(0);
 
   useEffect(() => {
@@ -22,7 +24,7 @@ export function HoldCountdown({ expiresAt }: HoldCountdownProps) {
     return () => clearInterval(interval);
   }, [expiresAt]);
 
-  const progress = (remaining / 120) * 100;
+  const progress = (remaining / totalSeconds) * 100;
 
   return (
     <Box className={styles.container}>

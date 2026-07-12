@@ -7,14 +7,13 @@ import { useHoldSeatMutation } from './hooks/useHoldSeatMutation';
 import { useReleaseSeatMutation } from './hooks/useReleaseSeatMutation';
 import { useConfirmReservationMutation } from './hooks/useConfirmReservationMutation';
 import { useUIStore } from './store/useUIStore';
-import { useSeatsStore } from './store/useSeatsStore';
+import { MAX_SEATS_PER_HOLD } from './lib/constants';
 import styles from './App.module.css';
 
 const EVENT_ID = 1;
 
 function App() {
-  const { isLoading } = useSeatsQuery(EVENT_ID);
-  const seats = useSeatsStore((s) => s.seats);
+  const { data: seats = [], isLoading } = useSeatsQuery(EVENT_ID);
   useSeatStream(EVENT_ID);
 
   const error = useUIStore((s) => s.error);
@@ -25,7 +24,20 @@ function App() {
   const releaseMutation = useReleaseSeatMutation(EVENT_ID, { onError: (e) => setError(e.message) });
   const confirmMutation = useConfirmReservationMutation(EVENT_ID, { onError: (e) => setError(e.message) });
 
+  const pendingSeatId = holdMutation.isPending
+    ? holdMutation.variables
+    : releaseMutation.isPending
+      ? releaseMutation.variables
+      : undefined;
+
+  const heldCount = seats.filter((s) => s.heldByMe && s.status === 'HELD').length;
+  const maxSeatsReached = heldCount >= MAX_SEATS_PER_HOLD;
+
   const handleHold = (seatId: number) => {
+    if (maxSeatsReached) {
+      setError(`You can only hold up to ${MAX_SEATS_PER_HOLD} seats`);
+      return;
+    }
     holdMutation.mutate(seatId);
   };
 
@@ -66,7 +78,13 @@ function App() {
       </header>
 
       <Container maxWidth="lg" component="main" sx={{ pt: { xs: 3, md: 5 }, pb: 12 }}>
-        <SeatMap seats={seats} onHold={handleHold} onRelease={handleRelease} />
+        <SeatMap
+          seats={seats}
+          onHold={handleHold}
+          onRelease={handleRelease}
+          pendingSeatId={pendingSeatId}
+          maxSeatsReached={maxSeatsReached}
+        />
       </Container>
 
       <ReservationBar

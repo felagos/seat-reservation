@@ -29,21 +29,21 @@ frontend-dev:
 
 test-backend:
 	@echo "Running backend tests..."
-	cd backend && ./gradlew.bat test
+	cd backend && ./gradlew test
 
 test-frontend:
 	@echo "Running frontend tests..."
-	cd frontend && bun test --run
+	cd frontend && bun run test -- --run
 
 test-watch:
 	@echo "Running frontend tests in watch mode..."
-	cd frontend && bun test --watch
+	cd frontend && bun run test
 
 test: test-backend test-frontend
 	@echo "All tests completed"
 
 clean:
 	@echo "Cleaning build artifacts..."
-	cd backend && ./gradlew.bat clean
+	cd backend && ./gradlew clean
 	cd frontend && bun run clean 2>/dev/null || true
 	@echo "Cleanup complete"

@@ -47,7 +47,11 @@
       "Bash(tasklist //FI \"IMAGENAME eq node.exe\")",
       "Bash(tasklist //FI \"IMAGENAME eq bun.exe\")",
       "Bash(taskkill *)",
-      "Bash(\"/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe\" --headless --disable-gpu --remote-debugging-port=9333 --user-data-dir=\"/c/Users/felag/AppData/Local/Temp/claude/C--Users-felag-Desktop-seat-reservation/64150d64-fdfb-43ff-9fc7-523bb4b14b56/scratchpad/edgeprofile2\" \"http://localhost:5173\")"
+      "Bash(\"/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe\" --headless --disable-gpu --remote-debugging-port=9333 --user-data-dir=\"/c/Users/felag/AppData/Local/Temp/claude/C--Users-felag-Desktop-seat-reservation/64150d64-fdfb-43ff-9fc7-523bb4b14b56/scratchpad/edgeprofile2\" \"http://localhost:5173\")",
+      "Bash(chmod +x gradlew)",
+      "Bash(/usr/libexec/java_home -V)",
+      "Bash(java -version)",
+      "Bash(docker info *)"
     ]
   }
 }

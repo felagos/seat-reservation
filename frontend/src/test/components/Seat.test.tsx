@@ -4,7 +4,6 @@ import type { Seat as SeatType } from '../../types'
 describe('Seat Component', () => {
   const createSeat = (overrides?: Partial<SeatType>): SeatType => ({
     id: 1,
-    eventId: 1,
     rowLabel: 'A',
     seatNumber: '1',
     status: 'AVAILABLE',

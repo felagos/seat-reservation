@@ -6,18 +6,32 @@ interface SeatProps {
   seat: SeatType;
   onHold: (seatId: number) => void;
   onRelease: (seatId: number) => void;
+  mutationPending?: boolean;
+  blockNewHold?: boolean;
 }
 
-export function Seat({ seat, onHold, onRelease }: SeatProps) {
+export function Seat({ seat, onHold, onRelease, mutationPending, blockNewHold }: SeatProps) {
   const label = `${seat.rowLabel}${seat.seatNumber}`;
-  const pending = seat.status === 'HELD' && !seat.heldByMe;
+  const heldByOther = seat.status === 'HELD' && !seat.heldByMe;
   const reserved = seat.status === 'RESERVED';
   const chosen = seat.status === 'HELD' && seat.heldByMe;
-  const disabled = pending || reserved;
+  const blockedByCap = seat.status === 'AVAILABLE' && blockNewHold;
+  const disabled = heldByOther || reserved || mutationPending || blockedByCap;
 
-  const title = reserved ? `${label} · reserved` : pending ? `${label} · held by another client` : label;
+  const title = reserved
+    ? `${label} · reserved`
+    : heldByOther
+      ? `${label} · held by another client`
+      : blockedByCap
+        ? `${label} · seat limit reached`
+        : label;
 
-  const className = [styles.seat, pending && styles.pending, reserved && styles.reserved, chosen && styles.chosen]
+  const className = [
+    styles.seat,
+    heldByOther && styles.pending,
+    reserved && styles.reserved,
+    chosen && styles.chosen,
+  ]
     .filter(Boolean)
     .join(' ');
 

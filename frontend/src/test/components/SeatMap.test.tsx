@@ -4,7 +4,6 @@ import type { Seat as SeatType } from '../../types'
 describe('SeatMap Component', () => {
   const createSeat = (id: number, row: string, number: string): SeatType => ({
     id,
-    eventId: 1,
     rowLabel: row,
     seatNumber: number,
     status: 'AVAILABLE',
