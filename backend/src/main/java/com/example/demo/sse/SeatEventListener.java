@@ -48,7 +48,6 @@ public class SeatEventListener {
     public void onSeatHeld(SeatHeldEvent event) {
         publish(event.eventId(), "seat-held", new SeatHeldPayload(
             event.seatId(),
-            event.heldBy(),
             event.expiresAt()
         ));
     }
@@ -97,7 +96,12 @@ public class SeatEventListener {
         }
     }
 
-    public record SeatHeldPayload(Long seatId, String heldBy, java.time.Instant expiresAt) {}
+    /**
+     * heldBy is intentionally excluded: it's broadcast to every client subscribed to the event
+     * (not just the holder), so leaking it would let any listener forge X-Client-Id and hijack
+     * the hold. The frontend derives ownership locally from its own hold mutation instead.
+     */
+    public record SeatHeldPayload(Long seatId, java.time.Instant expiresAt) {}
     public record SeatReleasedPayload(Long seatId) {}
     public record SeatReservedPayload(Long seatId, Long reservationId) {}
 }

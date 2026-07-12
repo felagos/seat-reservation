@@ -11,7 +11,6 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  */
 @RestController
 @RequestMapping("/api/events/{eventId}/stream")
-@CrossOrigin(origins = "*", maxAge = 3600)
 public class SseController {
     private final SseBroadcaster sseBroadcaster;
 

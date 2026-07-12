@@ -4,10 +4,12 @@ import com.example.demo.domain.Seat;
 import com.example.demo.domain.SeatStatus;
 import com.example.demo.event.SeatReleasedEvent;
 import com.example.demo.repository.SeatRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,8 +24,10 @@ import java.util.List;
  * Acquires locks, double-checks before reverting to handle concurrent operations.
  */
 @Service
-@EnableScheduling
 public class SeatSweepService {
+    private static final Logger log = LoggerFactory.getLogger(SeatSweepService.class);
+    private static final int SWEEP_BATCH_SIZE = 200;
+
     private final SeatRepository seatRepository;
     private final SeatLockRegistry lockRegistry;
     private final ApplicationEventPublisher eventPublisher;
@@ -53,14 +57,16 @@ public class SeatSweepService {
     }
 
     /**
-     * Sweep expired holds and revert to AVAILABLE.
-     * Scheduled at fixed interval (seat.sweep.interval-ms). Continues on individual failures.
+     * Sweep expired holds and revert to AVAILABLE, up to SWEEP_BATCH_SIZE per tick.
+     * Scheduled at fixed interval (seat.sweep.interval-ms). Continues on individual failures;
+     * any seats beyond the batch size are picked up on the next tick.
      */
     @Scheduled(fixedDelayString = "${seat.sweep.interval-ms:15000}")
     public void sweepExpiredHolds() {
         List<Seat> expiredSeats = seatRepository.findByStatusAndHeldUntilBefore(
             SeatStatus.HELD,
-            Instant.now()
+            Instant.now(),
+            PageRequest.of(0, SWEEP_BATCH_SIZE)
         );
 
         for (Seat seat : expiredSeats) {
@@ -70,7 +76,7 @@ public class SeatSweepService {
                     return null;
                 });
             } catch (Exception e) {
-                // Log but continue with other seats
+                log.warn("Failed to sweep expired hold for seat {}: {}", seat.getId(), e.getMessage());
             }
         }
     }
@@ -93,7 +99,6 @@ public class SeatSweepService {
             seat.setStatus(SeatStatus.AVAILABLE);
             seat.setHeldBy(null);
             seat.setHeldUntil(null);
-            seatRepository.save(seat);
             eventPublisher.publishEvent(new SeatReleasedEvent(eventId, seatId));
         }
     }

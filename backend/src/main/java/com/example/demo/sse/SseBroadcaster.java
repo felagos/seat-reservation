@@ -7,6 +7,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Server-Sent Events broadcaster for seat updates.
@@ -16,13 +17,10 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 @Component
 public class SseBroadcaster {
-    private final ConcurrentHashMap<Long, CopyOnWriteArrayList<SseEmitter>> emittersByEventId = new ConcurrentHashMap<>();
+    /** Well above the 15s heartbeat interval; bounds how long a dead-but-unnoticed connection lingers. */
+    private static final long EMITTER_TIMEOUT_MS = TimeUnit.MINUTES.toMillis(30);
 
-    /**
-     * Default constructor.
-     */
-    public SseBroadcaster() {
-    }
+    private final ConcurrentHashMap<Long, CopyOnWriteArrayList<SseEmitter>> emittersByEventId = new ConcurrentHashMap<>();
 
     /**
      * Subscribe client to seat event stream for event.
@@ -32,21 +30,22 @@ public class SseBroadcaster {
      * @return SseEmitter for HTTP client to receive events
      */
     public SseEmitter subscribe(Long eventId) {
-        SseEmitter emitter = new SseEmitter(0L);
+        SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MS);
         CopyOnWriteArrayList<SseEmitter> emitters = emittersByEventId
             .computeIfAbsent(eventId, key -> new CopyOnWriteArrayList<>());
         emitters.add(emitter);
 
-        emitter.onCompletion(() -> emitters.remove(emitter));
-        emitter.onTimeout(() -> emitters.remove(emitter));
-        emitter.onError(throwable -> emitters.remove(emitter));
+        emitter.onCompletion(() -> removeEmitter(eventId, emitter));
+        emitter.onTimeout(() -> removeEmitter(eventId, emitter));
+        emitter.onError(throwable -> removeEmitter(eventId, emitter));
 
         return emitter;
     }
 
     /**
      * Broadcast seat event to all SSE clients subscribed to event.
-     * Silently removes emitters on send failure (client disconnected).
+     * Completes the emitter with the error on send failure (client disconnected), which
+     * triggers onError cleanup instead of leaving a dead connection registered.
      *
      * @param eventId event ID
      * @param eventName event type ("seat-held", "seat-released", "seat-reserved")
@@ -64,7 +63,7 @@ public class SseBroadcaster {
                     .name(eventName)
                     .data(payload, MediaType.APPLICATION_JSON));
             } catch (IOException e) {
-                emitters.remove(emitter);
+                emitter.completeWithError(e);
             }
         }
     }
@@ -84,7 +83,7 @@ public class SseBroadcaster {
             try {
                 emitter.send(SseEmitter.event().comment("ping"));
             } catch (IOException e) {
-                emitters.remove(emitter);
+                emitter.completeWithError(e);
             }
         }
     }
@@ -96,5 +95,12 @@ public class SseBroadcaster {
         for (Long eventId : emittersByEventId.keySet()) {
             sendHeartbeat(eventId);
         }
+    }
+
+    private void removeEmitter(Long eventId, SseEmitter emitter) {
+        emittersByEventId.computeIfPresent(eventId, (key, emitters) -> {
+            emitters.remove(emitter);
+            return emitters.isEmpty() ? null : emitters;
+        });
     }
 }

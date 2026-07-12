@@ -1,0 +1,29 @@
+package com.example.demo.config;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+/**
+ * Central CORS configuration for all /api/** endpoints.
+ * Replaces per-controller @CrossOrigin(origins = "*"), which allowed any origin to call
+ * the reservation API (credential-free, but still needlessly permissive for a stateful app).
+ * Allowed origins are configurable per environment (dev defaults to the Vite dev server).
+ */
+@Configuration
+public class CorsConfig implements WebMvcConfigurer {
+
+    @Value("${app.cors.allowed-origins:http://localhost:5173}")
+    private String[] allowedOrigins;
+
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/api/**")
+            .allowedOrigins(allowedOrigins)
+            .allowedMethods("GET", "POST", "DELETE", "OPTIONS")
+            .allowedHeaders("*")
+            .maxAge(3600);
+    }
+}

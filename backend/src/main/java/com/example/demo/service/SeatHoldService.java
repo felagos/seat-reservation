@@ -5,6 +5,8 @@ import com.example.demo.domain.ReservationStatus;
 import com.example.demo.domain.Seat;
 import com.example.demo.domain.SeatStatus;
 import com.example.demo.exception.HoldExpiredException;
+import com.example.demo.exception.SeatHoldLimitExceededException;
+import com.example.demo.exception.SeatNotFoundException;
 import com.example.demo.exception.SeatNotOwnedException;
 import com.example.demo.exception.SeatUnavailableException;
 import com.example.demo.event.SeatHeldEvent;
@@ -12,6 +14,7 @@ import com.example.demo.event.SeatReleasedEvent;
 import com.example.demo.event.SeatReservedEvent;
 import com.example.demo.repository.ReservationRepository;
 import com.example.demo.repository.SeatRepository;
+import com.example.demo.web.dto.SeatRequestLimits;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
@@ -82,7 +85,7 @@ public class SeatHoldService {
      * @throws SeatLockTimeoutException if lock acquisition times out
      */
     public List<SeatHoldResponse> hold(Long eventId, List<Long> seatIds, String clientId) {
-        List<Long> sorted = seatIds.stream().sorted().collect(Collectors.toList());
+        List<Long> sorted = seatIds.stream().distinct().sorted().collect(Collectors.toList());
         return lockRegistry.withLocks(sorted, lockTimeoutMs, () ->
             selfProvider.getObject().doHoldTx(eventId, sorted, clientId)
         );
@@ -104,31 +107,42 @@ public class SeatHoldService {
         List<Seat> seats = seatRepository.findAllByIdForUpdate(seatIds);
 
         if (seats.size() != seatIds.size()) {
-            throw new SeatUnavailableException(0L);
+            throw new SeatNotFoundException(null);
         }
 
-        Instant expiresAt = Instant.now().plusSeconds(holdTtlSeconds);
+        Instant now = Instant.now();
+        Instant expiresAt = now.plusSeconds(holdTtlSeconds);
+        int newGrants = 0;
 
         for (Seat seat : seats) {
             if (!seat.getEvent().getId().equals(eventId)) {
                 throw new SeatUnavailableException(seat.getId());
             }
 
-            if (seat.getStatus() == SeatStatus.AVAILABLE) {
-                seat.setStatus(SeatStatus.HELD);
-                seat.setHeldBy(clientId);
-                seat.setHeldUntil(expiresAt);
-                seatRepository.save(seat);
-                eventPublisher.publishEvent(new SeatHeldEvent(eventId, seat.getId(), clientId, expiresAt));
-            } else if (seat.getStatus() == SeatStatus.HELD && seat.getHeldUntil().isBefore(Instant.now())) {
-                seat.setStatus(SeatStatus.HELD);
-                seat.setHeldBy(clientId);
-                seat.setHeldUntil(expiresAt);
-                seatRepository.save(seat);
-                eventPublisher.publishEvent(new SeatHeldEvent(eventId, seat.getId(), clientId, expiresAt));
-            } else {
+            boolean availableOrExpired = seat.getStatus() == SeatStatus.AVAILABLE
+                || (seat.getStatus() == SeatStatus.HELD && seat.getHeldUntil().isBefore(now));
+            boolean ownRenewal = seat.getStatus() == SeatStatus.HELD && clientId.equals(seat.getHeldBy());
+
+            if (!availableOrExpired && !ownRenewal) {
                 throw new SeatUnavailableException(seat.getId());
             }
+            if (!ownRenewal) {
+                newGrants++;
+            }
+        }
+
+        if (newGrants > 0) {
+            long alreadyHeld = seatRepository.countByHeldByAndStatus(clientId, SeatStatus.HELD);
+            if (alreadyHeld + newGrants > SeatRequestLimits.MAX_SEATS_PER_REQUEST) {
+                throw new SeatHoldLimitExceededException(SeatRequestLimits.MAX_SEATS_PER_REQUEST);
+            }
+        }
+
+        for (Seat seat : seats) {
+            seat.setStatus(SeatStatus.HELD);
+            seat.setHeldBy(clientId);
+            seat.setHeldUntil(expiresAt);
+            eventPublisher.publishEvent(new SeatHeldEvent(eventId, seat.getId(), clientId, expiresAt));
         }
 
         return seats.stream()
@@ -174,7 +188,6 @@ public class SeatHoldService {
         seat.setStatus(SeatStatus.AVAILABLE);
         seat.setHeldBy(null);
         seat.setHeldUntil(null);
-        seatRepository.save(seat);
         eventPublisher.publishEvent(new SeatReleasedEvent(seat.getEvent().getId(), seatId));
     }
 
@@ -192,7 +205,7 @@ public class SeatHoldService {
      * @throws SeatLockTimeoutException if lock acquisition times out
      */
     public Reservation confirm(Long eventId, List<Long> seatIds, String clientId) {
-        List<Long> sorted = seatIds.stream().sorted().collect(Collectors.toList());
+        List<Long> sorted = seatIds.stream().distinct().sorted().collect(Collectors.toList());
         return lockRegistry.withLocks(sorted, lockTimeoutMs, () ->
             selfProvider.getObject().doConfirmTx(eventId, sorted, clientId)
         );
@@ -214,8 +227,15 @@ public class SeatHoldService {
     public Reservation doConfirmTx(Long eventId, List<Long> seatIds, String clientId) {
         List<Seat> seats = seatRepository.findAllByIdForUpdate(seatIds);
 
+        if (seats.size() != seatIds.size()) {
+            throw new SeatNotFoundException(null);
+        }
+
         Instant now = Instant.now();
         for (Seat seat : seats) {
+            if (!seat.getEvent().getId().equals(eventId)) {
+                throw new SeatUnavailableException(seat.getId());
+            }
             if (seat.getStatus() != SeatStatus.HELD) {
                 throw new SeatUnavailableException(seat.getId());
             }
@@ -233,7 +253,6 @@ public class SeatHoldService {
         for (Seat seat : seats) {
             seat.setStatus(SeatStatus.RESERVED);
             seat.setReservationId(saved.getId());
-            seatRepository.save(seat);
             eventPublisher.publishEvent(new SeatReservedEvent(eventId, seat.getId(), saved.getId()));
         }
 

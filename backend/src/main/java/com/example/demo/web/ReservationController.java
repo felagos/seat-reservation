@@ -1,28 +1,26 @@
 package com.example.demo.web;
 
 import com.example.demo.service.SeatHoldService;
+import com.example.demo.web.dto.ClientIdConstraints;
 import com.example.demo.web.dto.ConfirmReservationRequest;
 import com.example.demo.web.dto.ReservationResponse;
-import org.springframework.http.HttpStatus;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Pattern;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 /**
  * REST endpoint for seat reservation confirmation.
  * Confirms held seats into a permanent reservation.
- * Requires X-Client-Id header. Returns 410 Gone if hold expired, 409 Conflict if seat unavailable.
+ * Error mapping (expired hold, unavailable seat) is handled by GlobalExceptionHandler.
  */
 @RestController
 @RequestMapping("/api/events/{eventId}/reservations")
-@CrossOrigin(origins = "*", maxAge = 3600)
+@Validated
 public class ReservationController {
     private final SeatHoldService seatHoldService;
 
-    /**
-     * Constructor with service injection.
-     *
-     * @param seatHoldService the hold/confirmation service
-     */
     public ReservationController(SeatHoldService seatHoldService) {
         this.seatHoldService = seatHoldService;
     }
@@ -30,26 +28,14 @@ public class ReservationController {
     /**
      * Confirm held seats into a reservation.
      * POST /api/events/{eventId}/reservations
-     *
-     * @param eventId event ID
-     * @param clientId client from X-Client-Id header
-     * @param request ConfirmReservationRequest with seat IDs to reserve
-     * @return 200 ReservationResponse, 410 if hold expired, 409 if seat unavailable
      */
     @PostMapping
-    public ResponseEntity<?> confirmReservation(
+    public ResponseEntity<ReservationResponse> confirmReservation(
         @PathVariable Long eventId,
-        @RequestHeader("X-Client-Id") String clientId,
-        @RequestBody ConfirmReservationRequest request
+        @RequestHeader("X-Client-Id") @Pattern(regexp = ClientIdConstraints.UUID_REGEX, message = "must be a valid UUID") String clientId,
+        @Valid @RequestBody ConfirmReservationRequest request
     ) {
-        try {
-            var reservation = seatHoldService.confirm(eventId, request.seatIds(), clientId);
-            return ResponseEntity.ok(ReservationResponse.fromReservation(reservation));
-        } catch (Exception e) {
-            if (e.getMessage().contains("expired")) {
-                return ResponseEntity.status(410).body(e.getMessage());
-            }
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
-        }
+        var reservation = seatHoldService.confirm(eventId, request.seatIds(), clientId);
+        return ResponseEntity.ok(ReservationResponse.fromReservation(reservation));
     }
 }

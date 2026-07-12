@@ -4,6 +4,7 @@ import com.example.demo.domain.Seat;
 import com.example.demo.domain.SeatStatus;
 import jakarta.persistence.LockModeType;
 import jakarta.persistence.QueryHint;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -54,12 +55,23 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
     List<Seat> findAllByIdForUpdate(@Param("ids") List<Long> ids);
 
     /**
-     * Get seats with status and expiration before cutoff time.
-     * Used by sweep job to find expired holds.
+     * Get seats with status and expiration before cutoff time, capped to a batch size.
+     * Used by sweep job to find expired holds; the cap keeps a single tick bounded when a
+     * large number of holds expire at once, deferring the rest to the next tick.
      *
      * @param status seat status to filter (e.g., HELD)
      * @param cutoff instant cutoff (seats before this are expired)
-     * @return matching seats (no lock)
+     * @param pageable page request controlling batch size
+     * @return matching seats (no lock), up to pageable's page size
      */
-    List<Seat> findByStatusAndHeldUntilBefore(SeatStatus status, Instant cutoff);
+    List<Seat> findByStatusAndHeldUntilBefore(SeatStatus status, Instant cutoff, Pageable pageable);
+
+    /**
+     * Count seats currently held by a client, for enforcing the per-client hold cap.
+     *
+     * @param heldBy client identifier
+     * @param status status to filter (HELD)
+     * @return count of held seats
+     */
+    long countByHeldByAndStatus(String heldBy, SeatStatus status);
 }
