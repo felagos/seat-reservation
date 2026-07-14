@@ -3,6 +3,7 @@
 help:
 	@echo "Seat Reservation System - Available commands:"
 	@echo ""
+	@echo "  make backend            - Run backend via gradle bootRun (needs DB already up)"
 	@echo "  make backend-dev        - Start the backend development environment"
 	@echo "  make frontend-dev       - Start the frontend development environment"
 	@echo "  make install-deps       - Install backend + frontend dependencies"
@@ -19,7 +20,11 @@ install-deps:
 	@echo "Installing frontend dependencies..."
 	cd frontend && bun install
 
-backend-dev : 
+backend:
+	@echo "Starting backend with gradle bootRun..."
+	cd backend && ./gradlew bootRun
+
+backend-dev :
 	@echo "Starting development environment..."
 	docker-compose -f docker/docker-compose.dev.yml down
 	docker-compose -f docker/docker-compose.dev.yml up -d --build

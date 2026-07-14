@@ -1,7 +1,6 @@
 package com.example.demo.service;
 
 import com.example.demo.domain.Reservation;
-import com.example.demo.domain.ReservationStatus;
 import com.example.demo.domain.Seat;
 import com.example.demo.domain.SeatStatus;
 import com.example.demo.exception.HoldExpiredException;
