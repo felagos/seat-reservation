@@ -46,7 +46,7 @@ public class SeatEventListener {
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onSeatHeld(SeatHeldEvent event) {
-        publish(event.eventId(), "seat-held", new SeatHeldPayload(
+        publish("seat-held", new SeatHeldPayload(
             event.seatId(),
             event.expiresAt()
         ));
@@ -60,7 +60,7 @@ public class SeatEventListener {
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onSeatReleased(SeatReleasedEvent event) {
-        publish(event.eventId(), "seat-released", new SeatReleasedPayload(
+        publish("seat-released", new SeatReleasedPayload(
             event.seatId()
         ));
     }
@@ -73,7 +73,7 @@ public class SeatEventListener {
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onSeatReserved(SeatReservedEvent event) {
-        publish(event.eventId(), "seat-reserved", new SeatReservedPayload(
+        publish("seat-reserved", new SeatReservedPayload(
             event.seatId(),
             event.reservationId()
         ));
@@ -83,13 +83,12 @@ public class SeatEventListener {
      * Publish event message to Redis Pub/Sub for cross-instance fanout.
      * Logs warnings if serialization fails but doesn't throw (non-blocking).
      *
-     * @param eventId event ID (part of message)
      * @param eventName "seat-held", "seat-released", or "seat-reserved"
      * @param payload event-specific payload (seatId, heldBy, expiresAt, etc.)
      */
-    private void publish(Long eventId, String eventName, Object payload) {
+    private void publish(String eventName, Object payload) {
         try {
-            String json = OBJECT_MAPPER.writeValueAsString(new SeatEventMessage(eventId, eventName, payload));
+            String json = OBJECT_MAPPER.writeValueAsString(new SeatEventMessage(eventName, payload));
             redisTemplate.convertAndSend(RedisConfig.SEAT_EVENTS_CHANNEL, json);
         } catch (Exception e) {
             log.warn("Failed to publish seat event to Redis: {}", e.getMessage());

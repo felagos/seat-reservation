@@ -1,1 +1,1 @@
-export const seatsKey = (eventId: number) => ['events', eventId, 'seats'] as const;
+export const seatsKey = ['seats'] as const;

@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
  * Error mapping (expired hold, unavailable seat) is handled by GlobalExceptionHandler.
  */
 @RestController
-@RequestMapping("/api/events/{eventId}/reservations")
+@RequestMapping("/api/reservations")
 @Validated
 public class ReservationController {
     private final SeatHoldService seatHoldService;
@@ -27,15 +27,14 @@ public class ReservationController {
 
     /**
      * Confirm held seats into a reservation.
-     * POST /api/events/{eventId}/reservations
+     * POST /api/reservations
      */
     @PostMapping
     public ResponseEntity<ReservationResponse> confirmReservation(
-        @PathVariable Long eventId,
         @RequestHeader("X-Client-Id") @Pattern(regexp = ClientIdConstraints.UUID_REGEX, message = "must be a valid UUID") String clientId,
         @Valid @RequestBody ConfirmReservationRequest request
     ) {
-        var reservation = seatHoldService.confirm(eventId, request.seatIds(), clientId);
+        var reservation = seatHoldService.confirm(request.seatIds(), clientId);
         return ResponseEntity.ok(ReservationResponse.fromReservation(reservation));
     }
 }

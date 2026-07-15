@@ -7,13 +7,13 @@ interface Options {
   onError?: (error: Error) => void;
 }
 
-export function useHoldSeatMutation(eventId: number, options?: Options) {
+export function useHoldSeatMutation(options?: Options) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (seatId: number) => holdSeat(eventId, seatId),
+    mutationFn: (seatId: number) => holdSeat(seatId),
     onSuccess: (response, seatId) => {
-      queryClient.setQueryData<Seat[]>(seatsKey(eventId), (seats) =>
+      queryClient.setQueryData<Seat[]>(seatsKey, (seats) =>
         seats?.map((s) =>
           s.id === seatId ? { ...s, status: 'HELD', heldByMe: true, expiresAt: response.expiresAt } : s
         )

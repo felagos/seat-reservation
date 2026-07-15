@@ -10,7 +10,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  * Events: seat-held, seat-released, seat-reserved with seat and client info.
  */
 @RestController
-@RequestMapping("/api/events/{eventId}/stream")
+@RequestMapping("/api/seats/stream")
 public class SseController {
     private final SseBroadcaster sseBroadcaster;
 
@@ -24,15 +24,14 @@ public class SseController {
     }
 
     /**
-     * Subscribe to seat event stream for an event.
-     * GET /api/events/{eventId}/stream (text/event-stream)
+     * Subscribe to seat event stream.
+     * GET /api/seats/stream (text/event-stream)
      * Opens persistent connection that emits seat-held, seat-released, seat-reserved events.
      *
-     * @param eventId event ID to subscribe to
      * @return SseEmitter for client (connection held until disconnect)
      */
     @GetMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter subscribe(@PathVariable Long eventId) {
-        return sseBroadcaster.subscribe(eventId);
+    public SseEmitter subscribe() {
+        return sseBroadcaster.subscribe();
     }
 }

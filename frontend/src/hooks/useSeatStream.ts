@@ -5,18 +5,18 @@ import { seatsKey } from '../lib/queryKeys';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
-export function useSeatStream(eventId: number) {
+export function useSeatStream() {
   const queryClient = useQueryClient();
   const eventSourceRef = useRef<EventSource | null>(null);
   const hadErrorRef = useRef(false);
 
   const patchSeat = useCallback(
     (seatId: number, updater: (seat: Seat) => Seat) => {
-      queryClient.setQueryData<Seat[]>(seatsKey(eventId), (seats) =>
+      queryClient.setQueryData<Seat[]>(seatsKey, (seats) =>
         seats?.map((s) => (s.id === seatId ? updater(s) : s))
       );
     },
-    [eventId, queryClient]
+    [queryClient]
   );
 
   const setupEventSource = useCallback(() => {
@@ -24,7 +24,7 @@ export function useSeatStream(eventId: number) {
       eventSourceRef.current.close();
     }
 
-    const eventSource = new EventSource(`${BASE_URL}/events/${eventId}/stream`);
+    const eventSource = new EventSource(`${BASE_URL}/seats/stream`);
     eventSourceRef.current = eventSource;
     hadErrorRef.current = false;
 
@@ -47,7 +47,7 @@ export function useSeatStream(eventId: number) {
 
     eventSource.addEventListener('open', () => {
       if (hadErrorRef.current) {
-        queryClient.invalidateQueries({ queryKey: seatsKey(eventId) });
+        queryClient.invalidateQueries({ queryKey: seatsKey });
         hadErrorRef.current = false;
       }
     });
@@ -55,7 +55,7 @@ export function useSeatStream(eventId: number) {
     eventSource.addEventListener('error', () => {
       hadErrorRef.current = true;
     });
-  }, [eventId, queryClient, patchSeat]);
+  }, [queryClient, patchSeat]);
 
   useEffect(() => {
     setupEventSource();

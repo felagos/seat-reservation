@@ -23,7 +23,7 @@ public class RedisSeatEventSubscriber implements MessageListener {
     public void onMessage(Message message, byte[] pattern) {
         try {
             SeatEventMessage event = OBJECT_MAPPER.readValue(message.getBody(), SeatEventMessage.class);
-            sseBroadcaster.broadcast(event.eventId(), event.eventName(), event.payload());
+            sseBroadcaster.broadcast(event.eventName(), event.payload());
         } catch (Exception e) {
             log.warn("Failed to process seat event from Redis: {}", e.getMessage());
         }

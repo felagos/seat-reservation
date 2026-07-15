@@ -17,7 +17,7 @@ import java.util.List;
  * Error mapping (unavailable, ownership, lock timeout) is handled by GlobalExceptionHandler.
  */
 @RestController
-@RequestMapping("/api/events/{eventId}/seats")
+@RequestMapping("/api/seats")
 @Validated
 public class SeatHoldController {
     private final SeatHoldService seatHoldService;
@@ -28,37 +28,34 @@ public class SeatHoldController {
 
     /**
      * Hold a single seat for the client.
-     * POST /api/events/{eventId}/seats/{seatId}/hold
+     * POST /api/seats/{seatId}/hold
      */
     @PostMapping("/{seatId}/hold")
     public ResponseEntity<SeatHoldService.SeatHoldResponse> holdSeat(
-        @PathVariable Long eventId,
         @PathVariable Long seatId,
         @RequestHeader("X-Client-Id") @Pattern(regexp = ClientIdConstraints.UUID_REGEX, message = "must be a valid UUID") String clientId
     ) {
-        return ResponseEntity.ok(seatHoldService.hold(eventId, seatId, clientId));
+        return ResponseEntity.ok(seatHoldService.hold(seatId, clientId));
     }
 
     /**
      * Hold multiple seats for the client, atomically.
-     * POST /api/events/{eventId}/seats/hold
+     * POST /api/seats/hold
      */
     @PostMapping("/hold")
     public ResponseEntity<List<SeatHoldService.SeatHoldResponse>> holdMultipleSeat(
-        @PathVariable Long eventId,
         @RequestHeader("X-Client-Id") @Pattern(regexp = ClientIdConstraints.UUID_REGEX, message = "must be a valid UUID") String clientId,
         @Valid @RequestBody HoldRequest request
     ) {
-        return ResponseEntity.ok(seatHoldService.hold(eventId, request.seatIds(), clientId));
+        return ResponseEntity.ok(seatHoldService.hold(request.seatIds(), clientId));
     }
 
     /**
      * Release a held seat back to AVAILABLE.
-     * DELETE /api/events/{eventId}/seats/{seatId}/hold
+     * DELETE /api/seats/{seatId}/hold
      */
     @DeleteMapping("/{seatId}/hold")
     public ResponseEntity<Void> releaseSeat(
-        @PathVariable Long eventId,
         @PathVariable Long seatId,
         @RequestHeader("X-Client-Id") @Pattern(regexp = ClientIdConstraints.UUID_REGEX, message = "must be a valid UUID") String clientId
     ) {

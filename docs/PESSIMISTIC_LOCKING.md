@@ -34,7 +34,7 @@ SELECT * FROM seats WHERE id IN (3, 5) ORDER BY id FOR UPDATE;
 
 ## Paso a paso — flujo de un hold
 
-1. `SeatHoldService.hold()` ordena seat IDs ascendente, adquiere locks en memoria vía `SeatLockRegistry.withLocks()`.
+1. `SeatHoldService.hold(seatIds, clientId)` ordena seat IDs ascendente, adquiere locks en memoria vía `SeatLockRegistry.withLocks()`.
 2. Con locks de memoria en mano, entra a `doHoldTx()` (`@Transactional`) → abre transacción DB.
 3. `seatRepository.findAllByIdForUpdate(seatIds)` ejecuta `SELECT ... FOR UPDATE` → filas bloqueadas en DB hasta commit.
 4. **Double-check**: revisa `status`/`held_by`/`held_until` de cada fila — estado pudo cambiar entre el momento en que cliente vio el seat mapa y ahora. Si expiró (`held_until < now`) trata como disponible (lazy expiry). Si otro cliente ya la tiene y no expiró, `SeatUnavailableException`.

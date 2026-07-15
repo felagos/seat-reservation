@@ -1,3 +1,3 @@
 package com.example.demo.sse;
 
-public record SeatEventMessage(Long eventId, String eventName, Object payload) {}
+public record SeatEventMessage(String eventName, Object payload) {}

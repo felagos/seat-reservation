@@ -4,24 +4,20 @@ import jakarta.persistence.*;
 import java.time.Instant;
 
 /**
- * Seat entity. Represents a single seat in an event, with concurrency-safe status tracking.
+ * Seat entity. Represents a single seat, with concurrency-safe status tracking.
  * Status: AVAILABLE (free) | HELD (temporarily reserved, expires after TTL) | RESERVED (confirmed).
  * When HELD: held_by (clientId) and held_until (expiration) are set.
- * Indexes: (event_id, status) for availability search, (held_until) for sweep job expiry.
+ * Indexes: (status) for availability search, (held_until) for sweep job expiry.
  */
 @Entity
 @Table(name = "seats", indexes = {
-    @Index(name = "idx_event_status", columnList = "event_id, status"),
+    @Index(name = "idx_status", columnList = "status"),
     @Index(name = "idx_held_until", columnList = "held_until")
 })
 public class Seat {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "event_id", nullable = false)
-    private Event event;
 
     @Column(nullable = false)
     private String rowLabel;
@@ -50,12 +46,10 @@ public class Seat {
     /**
      * Constructor for new seat creation. Initializes with AVAILABLE status.
      *
-     * @param event parent event
      * @param rowLabel seat row (e.g., "A", "B")
      * @param seatNumber seat number within row (e.g., "1", "2")
      */
-    public Seat(Event event, String rowLabel, String seatNumber) {
-        this.event = event;
+    public Seat(String rowLabel, String seatNumber) {
         this.rowLabel = rowLabel;
         this.seatNumber = seatNumber;
         this.status = SeatStatus.AVAILABLE;
@@ -69,16 +63,6 @@ public class Seat {
     /** Set seat ID. */
     public void setId(Long id) {
         this.id = id;
-    }
-
-    /** Get parent event. */
-    public Event getEvent() {
-        return event;
-    }
-
-    /** Set parent event. */
-    public void setEvent(Event event) {
-        this.event = event;
     }
 
     /** Get row label (e.g., "A", "B"). */

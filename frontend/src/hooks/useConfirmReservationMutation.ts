@@ -6,13 +6,13 @@ interface Options {
   onError?: (error: Error) => void;
 }
 
-export function useConfirmReservationMutation(eventId: number, options?: Options) {
+export function useConfirmReservationMutation(options?: Options) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (seatIds: number[]) => confirmReservation(eventId, seatIds),
+    mutationFn: (seatIds: number[]) => confirmReservation(seatIds),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: seatsKey(eventId) });
+      queryClient.invalidateQueries({ queryKey: seatsKey });
     },
     onError: (error: Error) => options?.onError?.(error),
   });

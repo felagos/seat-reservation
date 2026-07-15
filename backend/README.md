@@ -18,14 +18,12 @@ service/                → Business logic
   └── SeatSweepService (expiration)
 
 domain/                 → JPA entities
-  ├── Event
   ├── Seat
   ├── Reservation
   ├── SeatStatus enum
   └── ReservationStatus enum
 
 repository/             → JPA repositories
-  ├── EventRepository
   ├── SeatRepository (with pessimistic locking)
   └── ReservationRepository
 
@@ -35,7 +33,7 @@ sse/                    → Server-Sent Events + Redis fanout
   ├── SseHeartbeatScheduler
   ├── SeatEventListener (publishes to Redis)
   ├── RedisSeatEventSubscriber (receives from Redis, rebroadcasts local)
-  └── SeatEventMessage (envelope eventId/eventName/payload)
+  └── SeatEventMessage (envelope eventName/payload)
 
 config/
   └── RedisConfig (ChannelTopic + RedisMessageListenerContainer)
@@ -89,12 +87,12 @@ exception/              → Custom exceptions
 // In SeatHoldService.hold()
 List<Long> sorted = seatIds.stream().sorted().collect(Collectors.toList());
 return lockRegistry.withLocks(sorted, lockTimeoutMs, () ->
-    selfProvider.getObject().doHoldTx(eventId, sorted, clientId)
+    selfProvider.getObject().doHoldTx(sorted, clientId)
 );
 
 // In doHoldTx()
 @Transactional
-public List<SeatHoldResponse> doHoldTx(Long eventId, List<Long> seatIds, String clientId) {
+public List<SeatHoldResponse> doHoldTx(List<Long> seatIds, String clientId) {
     List<Seat> seats = seatRepository.findAllByIdForUpdate(seatIds); // SELECT FOR UPDATE
     
     for (Seat seat : seats) {
@@ -117,18 +115,18 @@ public List<SeatHoldResponse> doHoldTx(Long eventId, List<Long> seatIds, String 
 
 ## Endpoints
 
-Dynamic per event. Demo uses **eventId=1**.
+Single global seat pool (no event concept — POC scope).
 
 ### Seats
 
-**GET** `/api/events/{eventId}/seats`
+**GET** `/api/seats`
 ```
 Returns: List<SeatDto> sorted by rowLabel asc, seatNumber asc
 Headers: X-Client-Id (optional, to mark held-by-me)
 Response: 200 OK
 ```
 
-**POST** `/api/events/{eventId}/seats/{seatId}/hold`
+**POST** `/api/seats/{seatId}/hold`
 ```
 Select 1 seat
 Headers: X-Client-Id (required)
@@ -136,7 +134,7 @@ Response: 200 {seatId, rowLabel, seatNumber, expiresAt}
          409 Conflict (unavailable, timeout, etc.)
 ```
 
-**POST** `/api/events/{eventId}/seats/hold`
+**POST** `/api/seats/hold`
 ```
 Select N seats
 Headers: X-Client-Id
@@ -145,7 +143,7 @@ Response: 200 List<{seatId, rowLabel, seatNumber, expiresAt}>
          409 Conflict (one unavailable)
 ```
 
-**DELETE** `/api/events/{eventId}/seats/{seatId}/hold`
+**DELETE** `/api/seats/{seatId}/hold`
 ```
 Release a seat (only owner can)
 Headers: X-Client-Id
@@ -156,7 +154,7 @@ Response: 204 No Content
 
 ### Reservations
 
-**POST** `/api/events/{eventId}/reservations`
+**POST** `/api/reservations`
 ```
 Confirm multi-seat reservation
 Headers: X-Client-Id
@@ -168,7 +166,7 @@ Response: 200 {id, holderId, status}
 
 ### SSE
 
-**GET** `/api/events/{eventId}/stream`
+**GET** `/api/seats/stream`
 ```
 EventSource stream (text/event-stream)
 Events:
@@ -218,9 +216,9 @@ management.health.db.enabled=true
 ## Initialization (docker/init-db/init-demo.sql + db-init service)
 
 Schema and seed no longer live in Java. `docker/init-db/init-demo.sql` owns both:
-1. **Schema**: `CREATE TABLE IF NOT EXISTS` for events, reservations, seats + indices `idx_event_status`, `idx_held_until`
+1. **Schema**: `CREATE TABLE IF NOT EXISTS` for reservations, seats + indices `idx_status`, `idx_held_until`
 2. **Truncate + reset**: `SET FOREIGN_KEY_CHECKS=0; TRUNCATE` each table, then re-enables checks — resets `AUTO_INCREMENT` too
-3. **Seed**: creates Event id=1 + 50 Seats (A1-E10)
+3. **Seed**: creates 50 Seats (A1-E10)
 
 Executed by `db-init` service in `docker/docker-compose.dev.yml` (pipes `init-demo.sql` into the `mariadb` client), which runs **every time `docker-compose up` is run** (not just the first time the volume is created). Startup order: `mariadb` (healthy) → `db-init` (runs and exits) → `backend` (starts).
 
@@ -245,31 +243,22 @@ docker-compose -f ../docker/docker-compose.dev.yml up mariadb db-init
 ### Schema (created by docker/init-db/init-demo.sql, see Initialization section)
 
 ```sql
--- Events
-CREATE TABLE events (
-  id BIGSERIAL PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  starts_at TIMESTAMP NOT NULL
-);
-
 -- Seats
 CREATE TABLE seats (
   id BIGSERIAL PRIMARY KEY,
-  event_id BIGINT NOT NULL REFERENCES events,
   row_label VARCHAR(10) NOT NULL,
   seat_number VARCHAR(10) NOT NULL,
   status VARCHAR(20) NOT NULL, -- AVAILABLE, HELD, RESERVED
   held_by VARCHAR(255),        -- client UUID
   held_until TIMESTAMP,        -- NULL if not held
   reservation_id BIGINT REFERENCES reservations,
-  INDEX(event_id, status),
+  INDEX(status),
   INDEX(held_until)
 );
 
 -- Reservations
 CREATE TABLE reservations (
   id BIGSERIAL PRIMARY KEY,
-  event_id BIGINT NOT NULL REFERENCES events,
   holder_id VARCHAR(255) NOT NULL,
   status VARCHAR(20) NOT NULL, -- CONFIRMED
   created_at TIMESTAMP NOT NULL
@@ -375,7 +364,7 @@ SSE event fanout between instances works via Redis Pub/Sub (see "Real-time Event
   - If high contention: consider optimistic locking + retry
 
 - **DB indices**: 
-  - `(event_id, status)` → search for available seats
+  - `(status)` → search for available seats
   - `(held_until)` → search for expired in sweep
 
 ### Current Limitations

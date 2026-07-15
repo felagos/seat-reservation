@@ -22,12 +22,11 @@ import java.util.Optional;
  */
 public interface SeatRepository extends JpaRepository<Seat, Long> {
     /**
-     * Get all seats for event, sorted by row label then seat number.
+     * Get all seats, sorted by row label then seat number.
      *
-     * @param eventId event ID
      * @return ordered list of seats
      */
-    List<Seat> findByEventIdOrderByRowLabelAscSeatNumberAsc(Long eventId);
+    List<Seat> findAllByOrderByRowLabelAscSeatNumberAsc();
 
     /**
      * Get single seat with pessimistic write lock (FOR UPDATE).

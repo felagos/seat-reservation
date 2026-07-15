@@ -13,6 +13,6 @@ public class SseHeartbeatScheduler {
 
     @Scheduled(fixedRate = 15000)
     public void sendHeartbeats() {
-        sseBroadcaster.sendHeartbeatToAll();
+        sseBroadcaster.sendHeartbeat();
     }
 }

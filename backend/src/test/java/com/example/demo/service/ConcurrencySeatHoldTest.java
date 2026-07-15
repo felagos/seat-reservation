@@ -1,11 +1,9 @@
 package com.example.demo.service;
 
 import com.example.demo.config.TestRedisConfiguration;
-import com.example.demo.domain.Event;
 import com.example.demo.domain.Seat;
 import com.example.demo.domain.SeatStatus;
 import com.example.demo.exception.SeatLockTimeoutException;
-import com.example.demo.repository.EventRepository;
 import com.example.demo.repository.SeatRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -31,23 +29,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Disabled("Requires Redis setup. Run with embedded Redis or remove Redis dependency from test profile.")
 class ConcurrencySeatHoldTest {
     @Autowired
-    private EventRepository eventRepository;
-
-    @Autowired
     private SeatRepository seatRepository;
 
     @Autowired
     private SeatLockRegistry lockRegistry;
 
-    private Event event;
-
     @BeforeEach
     void setUp() {
-        event = new Event("Concert", java.time.Instant.now());
-        eventRepository.save(event);
-
         for (int i = 1; i <= 20; i++) {
-            var seat = new Seat(event, "A", String.valueOf(i));
+            var seat = new Seat("A", String.valueOf(i));
             seatRepository.save(seat);
         }
     }

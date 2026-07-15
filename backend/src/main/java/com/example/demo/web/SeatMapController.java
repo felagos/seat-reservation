@@ -8,11 +8,11 @@ import java.util.List;
 
 /**
  * REST endpoint for seat map retrieval.
- * Returns all seats for an event with status and ownership info.
+ * Returns all seats with status and ownership info.
  * Optional X-Client-Id sets heldByMe flag in seat DTOs.
  */
 @RestController
-@RequestMapping("/api/events/{eventId}/seats")
+@RequestMapping("/api/seats")
 public class SeatMapController {
     private final SeatQueryService seatQueryService;
 
@@ -21,14 +21,13 @@ public class SeatMapController {
     }
 
     /**
-     * Get all seats for an event, sorted by row then seat number.
-     * GET /api/events/{eventId}/seats
+     * Get all seats, sorted by row then seat number.
+     * GET /api/seats
      */
     @GetMapping
     public List<SeatDto> getSeatMap(
-        @PathVariable Long eventId,
         @RequestHeader(value = "X-Client-Id", required = false) String clientId
     ) {
-        return seatQueryService.getSeatMap(eventId, clientId);
+        return seatQueryService.getSeatMap(clientId);
     }
 }

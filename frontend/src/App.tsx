@@ -10,19 +10,17 @@ import { useUIStore } from './store/useUIStore';
 import { MAX_SEATS_PER_HOLD } from './lib/constants';
 import styles from './App.module.css';
 
-const EVENT_ID = 1;
-
 function App() {
-  const { data: seats = [], isLoading } = useSeatsQuery(EVENT_ID);
-  useSeatStream(EVENT_ID);
+  const { data: seats = [], isLoading } = useSeatsQuery();
+  useSeatStream();
 
   const error = useUIStore((s) => s.error);
   const setError = useUIStore((s) => s.setError);
   const clearError = useUIStore((s) => s.clearError);
 
-  const holdMutation = useHoldSeatMutation(EVENT_ID, { onError: (e) => setError(e.message) });
-  const releaseMutation = useReleaseSeatMutation(EVENT_ID, { onError: (e) => setError(e.message) });
-  const confirmMutation = useConfirmReservationMutation(EVENT_ID, { onError: (e) => setError(e.message) });
+  const holdMutation = useHoldSeatMutation({ onError: (e) => setError(e.message) });
+  const releaseMutation = useReleaseSeatMutation({ onError: (e) => setError(e.message) });
+  const confirmMutation = useConfirmReservationMutation({ onError: (e) => setError(e.message) });
 
   const pendingSeatId = holdMutation.isPending
     ? holdMutation.variables

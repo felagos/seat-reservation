@@ -1,10 +1,8 @@
 package com.example.demo.web;
 
 import com.example.demo.config.TestRedisConfiguration;
-import com.example.demo.domain.Event;
 import com.example.demo.domain.Seat;
 import com.example.demo.domain.SeatStatus;
-import com.example.demo.repository.EventRepository;
 import com.example.demo.repository.SeatRepository;
 import com.example.demo.web.dto.HoldRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -38,25 +36,19 @@ class SeatHoldControllerIntegrationTest {
     private WebApplicationContext context;
 
     @Autowired
-    private EventRepository eventRepository;
-
-    @Autowired
     private SeatRepository seatRepository;
 
     @Autowired
     private ObjectMapper objectMapper;
 
     private MockMvc mockMvc;
-    private Event event;
 
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
-        event = new Event("Test Event", java.time.Instant.now());
-        eventRepository.save(event);
 
         for (int i = 1; i <= 10; i++) {
-            var seat = new Seat(event, "A", String.valueOf(i));
+            var seat = new Seat("A", String.valueOf(i));
             seatRepository.save(seat);
         }
     }
@@ -67,7 +59,7 @@ class SeatHoldControllerIntegrationTest {
         var seatIds = seats.stream().map(Seat::getId).toList();
         var request = new HoldRequest(seatIds);
 
-        mockMvc.perform(post("/api/events/{eventId}/seats/hold", event.getId())
+        mockMvc.perform(post("/api/seats/hold")
             .header("X-Client-Id", "client-123")
             .contentType("application/json")
             .content(objectMapper.writeValueAsString(request)))
@@ -92,7 +84,7 @@ class SeatHoldControllerIntegrationTest {
 
         var request = new HoldRequest(List.of(seat.getId()));
 
-        mockMvc.perform(post("/api/events/{eventId}/seats/hold", event.getId())
+        mockMvc.perform(post("/api/seats/hold")
             .header("X-Client-Id", "client-123")
             .contentType("application/json")
             .content(objectMapper.writeValueAsString(request)))
@@ -103,7 +95,7 @@ class SeatHoldControllerIntegrationTest {
     void testHoldInvalidSeatId() throws Exception {
         var request = new HoldRequest(List.of(99999L));
 
-        mockMvc.perform(post("/api/events/{eventId}/seats/hold", event.getId())
+        mockMvc.perform(post("/api/seats/hold")
             .header("X-Client-Id", "client-123")
             .contentType("application/json")
             .content(objectMapper.writeValueAsString(request)))

@@ -1,46 +1,31 @@
-CREATE TABLE IF NOT EXISTS events (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    starts_at TIMESTAMP NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS reservations (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    event_id BIGINT NOT NULL,
     holder_id VARCHAR(255) NOT NULL,
     status VARCHAR(20) NOT NULL,
-    created_at TIMESTAMP NOT NULL,
-    CONSTRAINT fk_reservations_event FOREIGN KEY (event_id) REFERENCES events(id)
+    created_at TIMESTAMP NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS seats (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    event_id BIGINT NOT NULL,
     row_label VARCHAR(255) NOT NULL,
     seat_number VARCHAR(255) NOT NULL,
     status VARCHAR(20) NOT NULL,
     held_by VARCHAR(255),
     held_until TIMESTAMP NULL DEFAULT NULL,
     reservation_id BIGINT,
-    CONSTRAINT fk_seats_event FOREIGN KEY (event_id) REFERENCES events(id),
     CONSTRAINT fk_seats_reservation FOREIGN KEY (reservation_id) REFERENCES reservations(id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_event_status ON seats(event_id, status);
+CREATE INDEX IF NOT EXISTS idx_status ON seats(status);
 CREATE INDEX IF NOT EXISTS idx_held_until ON seats(held_until);
 
 SET FOREIGN_KEY_CHECKS = 0;
 TRUNCATE TABLE seats;
 TRUNCATE TABLE reservations;
-TRUNCATE TABLE events;
 SET FOREIGN_KEY_CHECKS = 1;
 
-INSERT INTO events (name, starts_at) VALUES ('Demo Concert', NOW() + INTERVAL 1 DAY);
-
-SET @event_id = LAST_INSERT_ID();
-
-INSERT INTO seats (event_id, row_label, seat_number, status)
-SELECT @event_id, r.row_label, CAST(n.seat_number AS CHAR), 'AVAILABLE'
+INSERT INTO seats (row_label, seat_number, status)
+SELECT r.row_label, CAST(n.seat_number AS CHAR), 'AVAILABLE'
 FROM (
     SELECT 'A' AS row_label UNION ALL
     SELECT 'B' UNION ALL

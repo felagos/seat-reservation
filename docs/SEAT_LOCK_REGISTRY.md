@@ -37,7 +37,7 @@ Dos hilos pidiendo seats {3,5} y {5,3} simultáneo, sin orden fijo, pueden deadl
 ## Diagrama ASCII — flujo completo
 
 ```
-Thread A: hold(eventId, seatIds=[5,3], clientId)
+Thread A: hold(seatIds=[5,3], clientId)
                 │
                 ▼
    sorted = [3, 5]   (SeatHoldService ordena antes de llamar)

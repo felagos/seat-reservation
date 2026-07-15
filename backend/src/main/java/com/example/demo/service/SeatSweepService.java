@@ -95,11 +95,10 @@ public class SeatSweepService {
 
         if (seat != null && seat.getStatus() == SeatStatus.HELD &&
             seat.getHeldUntil() != null && seat.getHeldUntil().isBefore(Instant.now())) {
-            Long eventId = seat.getEvent().getId();
             seat.setStatus(SeatStatus.AVAILABLE);
             seat.setHeldBy(null);
             seat.setHeldUntil(null);
-            eventPublisher.publishEvent(new SeatReleasedEvent(eventId, seatId));
+            eventPublisher.publishEvent(new SeatReleasedEvent(seatId));
         }
     }
 }

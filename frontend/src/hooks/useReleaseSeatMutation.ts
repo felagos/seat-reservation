@@ -7,13 +7,13 @@ interface Options {
   onError?: (error: Error) => void;
 }
 
-export function useReleaseSeatMutation(eventId: number, options?: Options) {
+export function useReleaseSeatMutation(options?: Options) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (seatId: number) => releaseSeat(eventId, seatId),
+    mutationFn: (seatId: number) => releaseSeat(seatId),
     onSuccess: (_data, seatId) => {
-      queryClient.setQueryData<Seat[]>(seatsKey(eventId), (seats) =>
+      queryClient.setQueryData<Seat[]>(seatsKey, (seats) =>
         seats?.map((s) => (s.id === seatId ? { ...s, status: 'AVAILABLE', heldByMe: false, expiresAt: undefined } : s))
       );
     },

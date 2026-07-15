@@ -19,14 +19,13 @@ public class SeatQueryService {
     }
 
     /**
-     * Get all seats for an event, sorted by row then seat number, with ownership resolved.
+     * Get all seats, sorted by row then seat number, with ownership resolved.
      *
-     * @param eventId event ID
      * @param clientId client to compare against held_by (empty string if not provided)
      * @return seat DTOs with heldByMe resolved
      */
-    public List<SeatDto> getSeatMap(Long eventId, String clientId) {
-        return seatRepository.findByEventIdOrderByRowLabelAscSeatNumberAsc(eventId).stream()
+    public List<SeatDto> getSeatMap(String clientId) {
+        return seatRepository.findAllByOrderByRowLabelAscSeatNumberAsc().stream()
             .map(seat -> SeatDto.fromSeat(seat, clientId != null ? clientId : ""))
             .toList();
     }

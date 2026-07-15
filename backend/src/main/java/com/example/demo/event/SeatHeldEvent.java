@@ -7,7 +7,6 @@ import java.time.Instant;
  * Processed by SeatEventListener AFTER_COMMIT to publish to Redis → SSE broadcast.
  */
 public record SeatHeldEvent(
-    Long eventId,
     Long seatId,
     String heldBy,
     Instant expiresAt

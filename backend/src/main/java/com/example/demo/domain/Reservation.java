@@ -15,10 +15,6 @@ public class Reservation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "event_id", nullable = false)
-    private Event event;
-
     @Column(name = "holder_id", nullable = false)
     private String holderId;
 
@@ -37,11 +33,9 @@ public class Reservation {
     /**
      * Constructor for reservation creation. Status defaults to CONFIRMED.
      *
-     * @param event event being reserved
      * @param holderId client that holds the seats
      */
-    public Reservation(Event event, String holderId) {
-        this.event = event;
+    public Reservation(String holderId) {
         this.holderId = holderId;
     }
 
@@ -53,16 +47,6 @@ public class Reservation {
     /** Set reservation ID. */
     public void setId(Long id) {
         this.id = id;
-    }
-
-    /** Get parent event. */
-    public Event getEvent() {
-        return event;
-    }
-
-    /** Set parent event. */
-    public void setEvent(Event event) {
-        this.event = event;
     }
 
     /** Get holder client ID. */

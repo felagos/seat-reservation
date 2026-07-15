@@ -99,9 +99,9 @@ bun run lint
 ### 1. Initialization
 
 ```
-App mounts with EVENT_ID = 1
+App mounts
   ↓
-useSeatsQuery(1) → GET /api/events/1/seats
+useSeatsQuery() → GET /api/seats
   ↓
 Seed demo already ran via docker/init-db/init-demo.sql (db-init service)
   ↓
@@ -113,9 +113,9 @@ SeatMap renders
 ### 2. EventSource (SSE) opens
 
 ```
-useSeatStream(1) in App
+useSeatStream() in App
   ↓
-new EventSource('/api/events/1/stream')
+new EventSource('/api/seats/stream')
   ↓
 addEventListener('seat-held', ...)
 addEventListener('seat-released', ...)
@@ -135,7 +135,7 @@ handleHold(seatId)
   ↓
 holdMutation.mutate(seatId)
   ↓
-POST /api/events/1/seats/3/hold
+POST /api/seats/3/hold
   ↓
 Reconcile with response:
   - If 200: OK, server expiration date
@@ -154,7 +154,7 @@ handleConfirm()
   ↓
 confirmMutation.mutate([seatIds])
   ↓
-POST /api/events/1/reservations { seatIds: [3, 5] }
+POST /api/reservations { seatIds: [3, 5] }
   ↓
 If 200: invalidateQueries → refetch full map
 If 409/410: show error, keep local state
@@ -200,39 +200,39 @@ Orchestrates everything:
 
 ## Hooks
 
-### `useSeatsQuery(eventId)`
+### `useSeatsQuery()`
 ```ts
-const { data: seats = [], isLoading } = useSeatsQuery(1);
+const { data: seats = [], isLoading } = useSeatsQuery();
 
 // seats: array of Seat
 // isLoading: boolean
 // Replaces initial fetch + loading state from useSeatMap
 ```
 
-### `useHoldSeatMutation(eventId, options)`
+### `useHoldSeatMutation(options)`
 ```ts
-const mutation = useHoldSeatMutation(1, { 
+const mutation = useHoldSeatMutation({ 
   onError: (err) => setError(err.message) 
 });
 mutation.mutate(seatId);
 ```
 
-### `useReleaseSeatMutation(eventId, options)`
+### `useReleaseSeatMutation(options)`
 ```ts
-const mutation = useReleaseSeatMutation(1);
+const mutation = useReleaseSeatMutation();
 mutation.mutate(seatId);
 ```
 
-### `useConfirmReservationMutation(eventId, options)`
+### `useConfirmReservationMutation(options)`
 ```ts
-const mutation = useConfirmReservationMutation(1);
+const mutation = useConfirmReservationMutation();
 mutation.mutate([3, 5, 7]);
 // On success: invalidates seat query, triggers refetch
 ```
 
-### `useSeatStream(eventId)`
+### `useSeatStream()`
 ```ts
-useSeatStream(1);
+useSeatStream();
 // No callbacks needed — updates React Query cache directly
 // Handles:
 // - Opens EventSource
@@ -246,11 +246,10 @@ useSeatStream(1);
 
 ```ts
 // All functions send X-Client-Id header
-await getSeatMap(eventId)              // GET /api/events/{eventId}/seats
-await holdSeat(eventId, seatId)        // POST /api/events/{eventId}/seats/{seatId}/hold
-await holdMultipleSeats(eventId, [...])// POST /api/events/{eventId}/seats/hold
-await releaseSeat(eventId, seatId)     // DELETE /api/events/{eventId}/seats/{seatId}/hold
-await confirmReservation(eventId, [...])// POST /api/events/{eventId}/reservations
+await getSeatMap()              // GET /api/seats
+await holdSeat(seatId)          // POST /api/seats/{seatId}/hold
+await releaseSeat(seatId)       // DELETE /api/seats/{seatId}/hold
+await confirmReservation([...])// POST /api/reservations
 ```
 
 Base URL: `VITE_API_URL` environment variable (default: `/api` with Vite proxy in dev)

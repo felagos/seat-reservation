@@ -108,7 +108,7 @@ seat-reservation/
 ├── backend/                    # Spring Boot application
 │   ├── src/main/java/
 │   │   └── com/example/demo/
-│   │       ├── domain/         # Entities (Event, Seat, Reservation)
+│   │       ├── domain/         # Entities (Seat, Reservation)
 │   │       ├── repository/     # JPA repositories
 │   │       ├── service/        # Business logic (SeatHoldService, SeatLockRegistry)
 │   │       ├── web/            # REST controllers
@@ -152,11 +152,8 @@ docker-compose up          db-init container           Database              Use
      ├─ mariadb healthy
      ├─ db-init: mariadb < init-demo.sql
      │                            │
-     │                            ├─ CREATE TABLE IF NOT EXISTS events/reservations/seats
+     │                            ├─ CREATE TABLE IF NOT EXISTS reservations/seats
      │                            ├─ TRUNCATE (FK checks off) each table
-     │
-     │                            ├─ CREATE Event(id=1, Demo Concert)
-     │                            │  INSERT INTO events
      │
      │                            ├─ CREATE 50 Seats (5 rows x 10)
      │                            │  INSERT INTO seats (all status=AVAILABLE)
@@ -170,10 +167,10 @@ docker-compose up          db-init container           Database              Use
                                                            │
                                                            ├─ App.tsx mounts
                                                            │
-                                                           ├─ useSeatsQuery(1)
-                                                           │  useEffect → GET /api/events/1/seats
+                                                           ├─ useSeatsQuery()
+                                                           │  useEffect → GET /api/seats
      │                                                                          │
-     │────────────────────────────▶ SELECT * FROM seats WHERE event_id = 1
+     │────────────────────────────▶ SELECT * FROM seats
      │
                                                            ◄────────────────── 200 OK [
                                                                 {id:1, row:A, seat:1, status:AVAILABLE},
@@ -184,10 +181,10 @@ docker-compose up          db-init container           Database              Use
                                                            │
                                                            ├─ setQueryData with response
                                                            │
-                                                           ├─ useSeatStream(1)
-                                                           │  new EventSource('/api/events/1/stream')
+                                                           ├─ useSeatStream()
+                                                           │  new EventSource('/api/seats/stream')
      │                                                                          │
-     │◄──────────────────────────────── GET /api/events/1/stream (text/event-stream)
+     │◄──────────────────────────────── GET /api/seats/stream (text/event-stream)
      │
                                                            ├─ UI renders grid (5 rows x 10 seats)
                                                            │  All seats = GREEN (AVAILABLE, clickable)
@@ -453,7 +450,7 @@ SSE Event → All see seat available again
 ## Frontend: SSE Synchronization
 
 ```
-1. EventSource opened → /api/events/1/stream
+1. EventSource opened → /api/seats/stream
 2. Listens for events: seat-held, seat-released, seat-reserved
 3. Updates React Query cache via setQueryData
 4. Auto-reconnect: full map refetch on reconnect
@@ -471,19 +468,19 @@ SSE Event → All see seat available again
 
 ## API Endpoints
 
-Dynamic per event. Demo uses **eventId=1** (single event).
+Single global seat pool (no event concept — POC scope).
 
 ### Seats
-- `GET /api/events/{eventId}/seats` - Full seat map
-- `POST /api/events/{eventId}/seats/{seatId}/hold` - Select 1 seat
-- `POST /api/events/{eventId}/seats/hold` - Select N seats
-- `DELETE /api/events/{eventId}/seats/{seatId}/hold` - Release seat
+- `GET /api/seats` - Full seat map
+- `POST /api/seats/{seatId}/hold` - Select 1 seat
+- `POST /api/seats/hold` - Select N seats
+- `DELETE /api/seats/{seatId}/hold` - Release seat
 
 ### Reservations
-- `POST /api/events/{eventId}/reservations` - Confirm reservation (multi-seat)
+- `POST /api/reservations` - Confirm reservation (multi-seat)
 
 ### SSE
-- `GET /api/events/{eventId}/stream` - EventSource stream
+- `GET /api/seats/stream` - EventSource stream
   - Events: `seat-held`, `seat-released`, `seat-reserved`
 
 No HTTP admin/reinit endpoint. Seed (schema + truncate + demo data) runs via `docker/init-db/init-demo.sql`, executed by `db-init` service each `docker-compose up` run (see "Getting Started" section).
