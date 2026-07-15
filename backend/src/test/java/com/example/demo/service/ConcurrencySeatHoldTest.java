@@ -1,45 +1,57 @@
 package com.example.demo.service;
 
-import com.example.demo.config.TestRedisConfiguration;
 import com.example.demo.domain.Seat;
 import com.example.demo.domain.SeatStatus;
 import com.example.demo.exception.SeatLockTimeoutException;
 import com.example.demo.repository.SeatRepository;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
-@SpringBootTest
-@ActiveProfiles("test")
-@Import(TestRedisConfiguration.class)
-@Transactional
-@Disabled("Requires Redis setup. Run with embedded Redis or remove Redis dependency from test profile.")
+/**
+ * Verifies SeatLockRegistry's exclusion guarantees under real concurrent threads.
+ * SeatRepository is mocked with an in-memory backing list (real Seat instances, mutated
+ * in place) so the double-check logic runs against realistic state without a DB.
+ */
 class ConcurrencySeatHoldTest {
-    @Autowired
     private SeatRepository seatRepository;
-
-    @Autowired
     private SeatLockRegistry lockRegistry;
+    private List<Seat> seats;
 
     @BeforeEach
     void setUp() {
+        seatRepository = mock(SeatRepository.class);
+        lockRegistry = new SeatLockRegistry();
+        seats = new ArrayList<>();
+
+        var nextId = new AtomicLong(1);
         for (int i = 1; i <= 20; i++) {
             var seat = new Seat("A", String.valueOf(i));
-            seatRepository.save(seat);
+            seat.setId(nextId.getAndIncrement());
+            seats.add(seat);
         }
+
+        when(seatRepository.findAll()).thenReturn(seats);
+        when(seatRepository.findById(anyLong())).thenAnswer(invocation -> {
+            Long id = invocation.getArgument(0);
+            return seats.stream().filter(s -> s.getId().equals(id)).findFirst();
+        });
+        when(seatRepository.findByIdForUpdate(anyLong())).thenAnswer(invocation -> {
+            Long id = invocation.getArgument(0);
+            return seats.stream().filter(s -> s.getId().equals(id)).findFirst();
+        });
     }
 
     @Test

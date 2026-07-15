@@ -1,63 +1,57 @@
 package com.example.demo.web;
 
-import com.example.demo.config.TestRedisConfiguration;
-import com.example.demo.domain.Seat;
-import com.example.demo.domain.SeatStatus;
-import com.example.demo.repository.SeatRepository;
+import com.example.demo.exception.SeatNotFoundException;
+import com.example.demo.exception.SeatUnavailableException;
+import com.example.demo.service.SeatHoldService;
 import com.example.demo.web.dto.HoldRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.context.WebApplicationContext;
 
 import java.time.Instant;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("test")
-@Import(TestRedisConfiguration.class)
-@Transactional
-@Disabled("Requires Redis setup. Run with embedded Redis or remove Redis dependency from test profile.")
+/**
+ * Controller-slice test: SeatHoldService is mocked and injected via SeatHoldController's
+ * constructor, MockMvc runs standalone (no Spring context) with GlobalExceptionHandler
+ * wired in manually so error-mapping behavior is still exercised.
+ */
 class SeatHoldControllerIntegrationTest {
-    @Autowired
-    private WebApplicationContext context;
-
-    @Autowired
-    private SeatRepository seatRepository;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
+    private SeatHoldService seatHoldService;
     private MockMvc mockMvc;
+    private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
-
-        for (int i = 1; i <= 10; i++) {
-            var seat = new Seat("A", String.valueOf(i));
-            seatRepository.save(seat);
-        }
+        seatHoldService = mock(SeatHoldService.class);
+        var controller = new SeatHoldController(seatHoldService);
+        mockMvc = MockMvcBuilders.standaloneSetup(controller)
+            .setControllerAdvice(new GlobalExceptionHandler())
+            .build();
+        objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     }
 
     @Test
     void testHoldMultipleSeatsSuccess() throws Exception {
-        var seats = (List<Seat>) seatRepository.findAll().subList(0, 2);
-        var seatIds = seats.stream().map(Seat::getId).toList();
-        var request = new HoldRequest(seatIds);
+        var responses = List.of(
+            new SeatHoldService.SeatHoldResponse(1L, "A", "1", Instant.now().plusSeconds(120)),
+            new SeatHoldService.SeatHoldResponse(2L, "A", "2", Instant.now().plusSeconds(120))
+        );
+        when(seatHoldService.hold(anyList(), anyString())).thenReturn(responses);
+
+        var request = new HoldRequest(List.of(1L, 2L));
 
         mockMvc.perform(post("/api/seats/hold")
             .header("X-Client-Id", "client-123")
@@ -67,22 +61,15 @@ class SeatHoldControllerIntegrationTest {
             .andExpect(jsonPath("$.length()").value(2))
             .andExpect(jsonPath("$[0].expiresAt").exists());
 
-        for (var seat : seats) {
-            var updatedSeat = seatRepository.findById(seat.getId()).get();
-            assertThat(updatedSeat.getStatus()).isEqualTo(SeatStatus.HELD);
-            assertThat(updatedSeat.getHeldBy()).isEqualTo("client-123");
-        }
+        verify(seatHoldService).hold(List.of(1L, 2L), "client-123");
     }
 
     @Test
     void testHoldAlreadyHeldSeatFails() throws Exception {
-        var seat = seatRepository.findAll().get(0);
-        seat.setStatus(SeatStatus.HELD);
-        seat.setHeldBy("other-client");
-        seat.setHeldUntil(Instant.now().plusSeconds(60));
-        seatRepository.save(seat);
+        when(seatHoldService.hold(anyList(), anyString()))
+            .thenThrow(new SeatUnavailableException(1L));
 
-        var request = new HoldRequest(List.of(seat.getId()));
+        var request = new HoldRequest(List.of(1L));
 
         mockMvc.perform(post("/api/seats/hold")
             .header("X-Client-Id", "client-123")
@@ -93,12 +80,15 @@ class SeatHoldControllerIntegrationTest {
 
     @Test
     void testHoldInvalidSeatId() throws Exception {
+        when(seatHoldService.hold(anyList(), anyString()))
+            .thenThrow(new SeatNotFoundException(null));
+
         var request = new HoldRequest(List.of(99999L));
 
         mockMvc.perform(post("/api/seats/hold")
             .header("X-Client-Id", "client-123")
             .contentType("application/json")
             .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isConflict());
+            .andExpect(status().isNotFound());
     }
 }
