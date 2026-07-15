@@ -55,7 +55,7 @@ class SeatHoldControllerIntegrationTest {
 
     @Test
     void testHoldMultipleSeatsSuccess() throws Exception {
-        var seats = seatRepository.findAll().subList(0, 2);
+        var seats = (List<Seat>) seatRepository.findAll().subList(0, 2);
         var seatIds = seats.stream().map(Seat::getId).toList();
         var request = new HoldRequest(seatIds);
 
