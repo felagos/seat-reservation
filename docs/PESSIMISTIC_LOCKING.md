@@ -81,19 +81,19 @@ Sin capa DB: multi-instancia (nginx round-robin a N backends) — dos requests p
               └───────┬──────────┘           └───────┬──────────┘
                       │                               │
                       ▼                               ▼
-              ┌───────────────────────────────────────────────┐
-              │                MariaDB                          │
-              │  fila seat id=7                                 │
+              ┌──────────────────────────────────────────────────┐
+              │                MariaDB                           │
+              │  fila seat id=7                                  │
               │                                                  │
               │  Backend #1 llega primero ──► lock adquirido     │
-              │  Backend #2 llega después ──► BLOQUEADO           │
-              │                                (espera hasta 3s)  │
-              └───────────────────────────────────────────────┘
+              │  Backend #2 llega después ──► BLOQUEADO          │
+              │                                (espera hasta 3s) │
+              └──────────────────────────────────────────────────┘
                       │                               │
                       ▼                               │
-              status==AVAILABLE?                       │
-              sí ──► UPDATE HELD                        │
-              COMMIT ──► libera fila                     │
+              status==AVAILABLE?                      │
+              sí ──► UPDATE HELD                      │
+              COMMIT ──► libera fila                  │
                       │                               │
                       │                               ▼
                       │                    lock adquirido (fila libre)
