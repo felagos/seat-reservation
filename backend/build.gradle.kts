@@ -37,6 +37,7 @@ dependencies {
 		exclude("org.springframework.boot", "spring-boot-starter-logging")
 	}
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
+	testImplementation("org.springframework.boot:spring-boot-webmvc-test")
 	testImplementation("org.mockito:mockito-core")
 	testImplementation("org.mockito:mockito-junit-jupiter")
 	testImplementation("com.h2database:h2")
@@ -46,6 +47,24 @@ dependencies {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+}
+
+tasks.test {
+	useJUnitPlatform {
+		excludeTags("smoke")
+	}
+}
+
+tasks.register<Test>("smokeTest") {
+	description = "Runs only the smoke tests (tag \"smoke\")"
+	group = "verification"
+
+	testClassesDirs = sourceSets["test"].output.classesDirs
+	classpath = sourceSets["test"].runtimeClasspath
+
+	useJUnitPlatform {
+		includeTags("smoke")
+	}
 }
 
 pitest {
