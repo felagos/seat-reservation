@@ -2,6 +2,7 @@ plugins {
 	java
 	id("org.springframework.boot") version "4.1.0"
 	id("io.spring.dependency-management") version "1.1.7"
+	id("info.solidsoft.pitest") version "1.19.0"
 }
 
 group = "com.seatreservation"
@@ -36,8 +37,8 @@ dependencies {
 		exclude("org.springframework.boot", "spring-boot-starter-logging")
 	}
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
-	testImplementation("org.mockito:mockito-core:5.7.0")
-	testImplementation("org.mockito:mockito-junit-jupiter:5.7.0")
+	testImplementation("org.mockito:mockito-core")
+	testImplementation("org.mockito:mockito-junit-jupiter")
 	testImplementation("com.h2database:h2")
 	testImplementation("org.assertj:assertj-core:3.25.3")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -45,4 +46,24 @@ dependencies {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+}
+
+pitest {
+	junit5PluginVersion.set("1.2.3")
+	pitestVersion.set("1.25.5")
+	targetClasses.set(listOf("com.example.demo.*"))
+	targetTests.set(listOf("com.example.demo.*"))
+	excludedClasses.set(listOf(
+		"com.example.demo.DemoApplication",
+		"com.example.demo.config.*",
+		"com.example.demo.web.dto.*",
+		"com.example.demo.domain.SeatStatus",
+		"com.example.demo.domain.ReservationStatus",
+		"com.example.demo.event.*",
+		"com.example.demo.sse.SeatEventMessage",
+		"com.example.demo.exception.*"
+	))
+	mutators.set(listOf("STRONGER"))
+	threads.set(4)
+	outputFormats.set(listOf("HTML", "XML"))
 }

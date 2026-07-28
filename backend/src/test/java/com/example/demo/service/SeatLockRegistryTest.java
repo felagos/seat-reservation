@@ -4,7 +4,9 @@ import com.example.demo.exception.SeatLockTimeoutException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -19,14 +21,22 @@ class SeatLockRegistryTest {
         lockRegistry = new SeatLockRegistry();
     }
 
-    @Test
-    void testAcquireLockSuccessfully() {
-        var result = lockRegistry.withLocks(List.of(1L), 1000, () -> "success");
-        assertThat(result).isEqualTo("success");
+    /** Reads the private lock map directly to verify holder entries are evicted (or kept) as expected. */
+    private int lockMapSize() throws ReflectiveOperationException {
+        Field field = SeatLockRegistry.class.getDeclaredField("locks");
+        field.setAccessible(true);
+        return ((Map<?, ?>) field.get(lockRegistry)).size();
     }
 
     @Test
-    void testLockTimeoutThrowsException() throws InterruptedException {
+    void testAcquireLockSuccessfully() throws Exception {
+        var result = lockRegistry.withLocks(List.of(1L), 1000, () -> "success");
+        assertThat(result).isEqualTo("success");
+        assertThat(lockMapSize()).isZero();
+    }
+
+    @Test
+    void testLockTimeoutThrowsException() throws Exception {
         var blockLatch = new java.util.concurrent.CountDownLatch(1);
         var releaseLatch = new java.util.concurrent.CountDownLatch(1);
 
@@ -52,6 +62,86 @@ class SeatLockRegistryTest {
             releaseLatch.countDown();
             thread.join();
         }
+        assertThat(lockMapSize()).isZero();
+    }
+
+    @Test
+    void testHolderNotEvictedWhileAnotherThreadStillWaiting() throws Exception {
+        var holdingLatch = new CountDownLatch(1);
+        var releaseLatch = new CountDownLatch(1);
+        var waiterDone = new CountDownLatch(1);
+
+        var holder = new Thread(() -> lockRegistry.withLocks(List.of(1L), 5000, () -> {
+            holdingLatch.countDown();
+            try {
+                releaseLatch.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return null;
+        }));
+        holder.start();
+        holdingLatch.await();
+
+        var waiter = new Thread(() -> {
+            lockRegistry.withLocks(List.of(1L), 5000, () -> "waited");
+            waiterDone.countDown();
+        });
+        waiter.start();
+        Thread.sleep(150); // let waiter register its interest (increment refCount) and block on tryLock
+
+        assertThat(lockMapSize()).isEqualTo(1);
+
+        releaseLatch.countDown();
+        holder.join();
+        waiterDone.await();
+        waiter.join();
+
+        assertThat(lockMapSize()).isZero();
+    }
+
+    @Test
+    void testReleaseUnacquiredOnInterrupt_decrementsRefCount() throws Exception {
+        var holdingLatch = new CountDownLatch(1);
+        var releaseLatch = new CountDownLatch(1);
+
+        var holder = new Thread(() -> lockRegistry.withLocks(List.of(1L), 5000, () -> {
+            holdingLatch.countDown();
+            try {
+                releaseLatch.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return null;
+        }));
+        holder.start();
+        holdingLatch.await();
+
+        var caughtTimeout = new AtomicInteger(0);
+        var interruptFlagRestored = new AtomicInteger(0);
+        var waiter = new Thread(() -> {
+            try {
+                lockRegistry.withLocks(List.of(1L), 5000, () -> "should-not-run");
+            } catch (SeatLockTimeoutException e) {
+                caughtTimeout.incrementAndGet();
+                if (Thread.currentThread().isInterrupted()) {
+                    interruptFlagRestored.incrementAndGet();
+                }
+            }
+        });
+        waiter.start();
+        Thread.sleep(150); // let waiter register its interest and block on tryLock
+        waiter.interrupt();
+        waiter.join();
+
+        assertThat(caughtTimeout.get()).isEqualTo(1);
+        assertThat(interruptFlagRestored.get()).isEqualTo(1);
+        assertThat(lockMapSize()).isEqualTo(1); // holder thread still holds/references it
+
+        releaseLatch.countDown();
+        holder.join();
+
+        assertThat(lockMapSize()).isZero();
     }
 
     @Test
